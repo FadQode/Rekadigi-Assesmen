@@ -12,6 +12,8 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "typecheck": "tsc --noEmit",
+    "db:migrate": "bun run src/database/migrate.ts",
+    "db:seed": "bun run src/database/seeds/seed.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
