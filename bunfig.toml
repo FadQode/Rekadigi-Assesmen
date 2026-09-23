@@ -1,0 +1,8 @@
+[test]
+preload = ["./tests/setup.ts"]
+coverage = false
+coverageReporter = ["text", "lcov"]
+coveragePathIgnorePatterns = ["**/*.d.ts", "**/migrations/**", "**/seeds/**"]
+
+[install]
+exact = false
