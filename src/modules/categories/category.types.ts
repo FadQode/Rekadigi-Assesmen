@@ -10,10 +10,8 @@ export interface Category {
   parentId: string | null;
   name: string;
   slug: string;
-  description: string | null;
   path: string;
   depth: number;
-  position: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,8 +25,6 @@ export interface CreateCategoryData {
   parentId?: string | null;
   name: string;
   slug: string;
-  description?: string | null;
-  position?: number;
 }
 
 export type UpdateCategoryData = Partial<Omit<CreateCategoryData, 'parentId'>> & {

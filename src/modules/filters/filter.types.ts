@@ -1,9 +1,9 @@
 /**
  * Supported filter value kinds.
  *
- * - `enum`     : fixed set of options (fuel type, transmission, ...)
- * - `range`    : numeric/date bounds (price, year, mileage)
- * - `boolean`  : yes/no flags (accident-free, warranty, ...)
+ * - `enum`     : fixed set of options (fuel type, transmission, drivetrain, ...)
+ * - `range`    : numeric bounds (price, year, mileage, engine_cc, ...)
+ * - `boolean`  : yes/no flags (warranty, accident_free, sunroof, ...)
  */
 export type FilterAttributeType = 'enum' | 'range' | 'boolean';
 
@@ -11,35 +11,53 @@ export type FilterAttributeType = 'enum' | 'range' | 'boolean';
 export interface FilterOption {
   value: string;
   label: string;
+  /** Populated only when the option is returned with facet counts. */
   count?: number;
 }
 
 /**
- * A filter definition, optionally scoped to one category.
+ * A filter definition scoped to one category.
  *
- * Filter metadata drives both the query builder and the API documentation so
- * request validation and filtering stay aligned.
+ * Mirrors the `filter_attributes` table exactly: `key` maps to the `slug`
+ * column (the key written into `listings.attributes`), `label` maps to `name`.
+ * Only `enum` filters carry `options`; `range` and `boolean` filters leave it
+ * empty, which is why no min/max bounds are modelled here — the database does
+ * not store them.
  */
 export interface FilterAttribute {
   id: string;
   key: string;
   label: string;
   type: FilterAttributeType;
-  categoryId: string | null;
-  /** JSONB path used for dynamic attributes (e.g. `attributes.color`). */
-  attributePath: string | null;
+  categoryId: string;
   options: FilterOption[];
-  unit: string | null;
-  min: number | null;
-  max: number | null;
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-/** Filter definition enriched with facet counts for a result set. */
+/**
+ * A filter definition enriched with facet counts for a result set.
+ *
+ * Extends `FilterAttribute` additively so the base definition contract used by
+ * attribute validation is untouched:
+ *
+ * - `enum`    : each declared option carries a `count`.
+ * - `boolean` : `options` is synthesized as `true`/`false` with a `count` each
+ *               (boolean filters store no options in the database).
+ * - `range`   : `min`/`max` describe the available value range; `options`
+ *               stays empty as declared.
+ *
+ * `count` is the number of listings matching the current selection that have
+ * any value for this filter, which is the sum of the option counts for
+ * discrete filters.
+ */
 export interface FilterWithCounts extends FilterAttribute {
-  options: FilterOption[];
+  /** Smallest available value across matching listings (`range` filters). */
+  min?: number | null;
+  /** Largest available value across matching listings (`range` filters). */
+  max?: number | null;
+  /** Listings matching the current selection that have a value for this filter. */
+  count?: number;
 }
 
 export interface FilterQuery {

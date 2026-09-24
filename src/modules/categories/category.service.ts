@@ -1,5 +1,4 @@
-import { NotFoundError } from '../../shared/errors/http-errors.ts';
-import { NotImplementedError } from '../../shared/errors/not-implemented-error.ts';
+import { ConflictError, NotFoundError } from '../../shared/errors/http-errors.ts';
 import { listingService, type ListingService } from '../listings/listing.service.ts';
 import type { ListingSearchFilters, ListingSearchResult } from '../listings/listing.types.ts';
 import { categoryRepository, type CategoryRepository } from './category.repository.ts';
@@ -42,12 +41,75 @@ export class CategoryService {
     return category;
   }
 
-  async create(_data: CreateCategoryData): Promise<Category> {
-    throw new NotImplementedError('CategoryService.create is implemented in Phase 1');
+  async create(data: CreateCategoryData): Promise<Category> {
+    await this.assertParentExists(data.parentId);
+    await this.assertSlugAvailable(data.slug, data.parentId ?? null);
+    return this.repository.create(data);
   }
 
-  async update(_id: string, _data: UpdateCategoryData): Promise<Category> {
-    throw new NotImplementedError('CategoryService.update is implemented in Phase 1');
+  async update(id: string, data: UpdateCategoryData): Promise<Category> {
+    const existing = await this.getById(id);
+
+    const parentId = data.parentId === undefined ? existing.parentId : data.parentId;
+
+    if (data.parentId !== undefined) {
+      await this.assertParentExists(data.parentId);
+      await this.assertParentIsNotDescendant(id, data.parentId);
+    }
+
+    const slug = data.slug ?? existing.slug;
+    if (data.slug !== undefined || (data.parentId !== undefined && data.parentId !== existing.parentId)) {
+      await this.assertSlugAvailable(slug, parentId, id);
+    }
+
+    const updated = await this.repository.update(id, data);
+    if (updated === null) {
+      throw new NotFoundError('Category not found', { details: { code: 'CATEGORY_NOT_FOUND' } });
+    }
+    return updated;
+  }
+
+  /**
+   * A category cannot be placed under itself or one of its own descendants,
+   * which would create a cycle. Resolved in SQL via the ancestor set.
+   */
+  private async assertParentIsNotDescendant(id: string, parentId: string | null): Promise<void> {
+    if (parentId === null || parentId === id) {
+      throw new ConflictError('A category cannot be its own parent', {
+        details: { code: 'CATEGORY_CYCLE' },
+      });
+    }
+
+    const descendants = await this.repository.findDescendantIds(id);
+    if (descendants.includes(parentId)) {
+      throw new ConflictError('A category cannot be moved under one of its own descendants', {
+        details: { code: 'CATEGORY_CYCLE' },
+      });
+    }
+  }
+
+  private async assertParentExists(parentId: string | null | undefined): Promise<void> {
+    if (parentId === null || parentId === undefined) return;
+    const parent = await this.repository.findById(parentId);
+    if (parent === null) {
+      throw new NotFoundError('Parent category not found', {
+        details: { code: 'PARENT_CATEGORY_NOT_FOUND' },
+      });
+    }
+  }
+
+  private async assertSlugAvailable(
+    slug: string,
+    parentId: string | null,
+    excludeId?: string,
+  ): Promise<void> {
+    const existing = await this.repository.findByParentAndSlug(parentId, slug);
+    if (existing === null) return;
+    if (excludeId !== undefined && existing.id === excludeId) return;
+
+    throw new ConflictError('A category with this slug already exists', {
+      details: { code: 'CATEGORY_SLUG_CONFLICT' },
+    });
   }
 
   /**

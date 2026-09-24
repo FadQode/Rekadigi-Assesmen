@@ -54,8 +54,11 @@ export const errorHandler = new Elysia({ name: 'middleware.error-handler' }).onE
 
     const message = describe(error);
 
-    if (code === 'VALIDATION') {
-      logger.warn('Request validation failed', { error: message });
+    // `VALIDATION` covers schema mismatches; `PARSE` covers a body that could
+    // not be parsed at all (malformed JSON). Both are client mistakes and must
+    // not be reported as a server fault.
+    if (code === 'VALIDATION' || code === 'PARSE') {
+      logger.warn('Request validation failed', { code, error: message });
       return build(400, {
         error: { code: new ValidationError().code, message: 'Request validation failed' },
       });

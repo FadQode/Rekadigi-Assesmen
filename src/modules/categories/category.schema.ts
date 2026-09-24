@@ -1,11 +1,12 @@
 import { t } from 'elysia';
+import { uuidSchema } from '../../shared/schemas/index.ts';
 
 export const categoryIdParamsSchema = t.Object({
-  id: t.String({ format: 'uuid', description: 'Category identifier (UUID)' }),
+  id: uuidSchema('Category identifier (UUID)'),
 });
 
 export const createCategoryBodySchema = t.Object({
-  parentId: t.Optional(t.Nullable(t.String({ format: 'uuid' }))),
+  parentId: t.Optional(t.Nullable(uuidSchema())),
   name: t.String({ minLength: 1, maxLength: 150 }),
   slug: t.String({
     minLength: 1,

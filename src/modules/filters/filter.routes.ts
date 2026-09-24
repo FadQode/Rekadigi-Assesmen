@@ -1,6 +1,10 @@
 import { Elysia } from 'elysia';
 import { filterController } from './filter.controller.ts';
-import { filterCategoryParamsSchema, filterQuerySchema } from './filter.schema.ts';
+import {
+  facetCountsQuerySchema,
+  filterCategoryParamsSchema,
+  filterQuerySchema,
+} from './filter.schema.ts';
 
 /**
  * HTTP surface of the Filters module.
@@ -14,5 +18,6 @@ export const filterRoutes = new Elysia({ prefix: '/filters', tags: ['Filters'] }
   })
   .get('/:categoryId', filterController.listForCategory, {
     params: filterCategoryParamsSchema,
+    query: facetCountsQuerySchema,
     detail: { summary: 'List filter definitions and facet counts for a category' },
   });

@@ -14,13 +14,18 @@ export class FilterService {
     private readonly categories: CategoryRepository = categoryRepository,
   ) {}
 
-  /** Global and category-scoped filter definitions. */
+  /**
+   * Filter definitions for a category.
+   *
+   * Every filter definition in this schema is category-scoped, so an unscoped
+   * request has nothing to return.
+   */
   async list(categoryId: string | null = null): Promise<FilterAttribute[]> {
-    if (categoryId !== null) {
-      const category = await this.categories.findById(categoryId);
-      if (category === null) {
-        throw new NotFoundError('Category not found', { details: { code: 'CATEGORY_NOT_FOUND' } });
-      }
+    if (categoryId === null) return [];
+
+    const category = await this.categories.findById(categoryId);
+    if (category === null) {
+      throw new NotFoundError('Category not found', { details: { code: 'CATEGORY_NOT_FOUND' } });
     }
     return this.repository.findByCategoryId(categoryId);
   }

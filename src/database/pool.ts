@@ -1,6 +1,8 @@
 import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from 'pg';
 import { env } from '../config/env.ts';
+import { AppError } from '../shared/errors/app-error.ts';
 import { DatabaseError } from '../shared/errors/database-error.ts';
+import { ConflictError } from '../shared/errors/http-errors.ts';
 import { logger } from '../shared/logger.ts';
 
 /**
@@ -25,22 +27,65 @@ pool.on('error', (error) => {
   logger.error('Unexpected error on idle PostgreSQL client', { error });
 });
 
+function isUniqueViolation(cause: unknown): boolean {
+  return (
+    typeof cause === 'object' &&
+    cause !== null &&
+    'code' in cause &&
+    (cause as { code?: unknown }).code === '23505'
+  );
+}
+
+/**
+ * Translate a driver/query failure into an operational application error.
+ *
+ * PostgreSQL error codes are inspected so well-known constraint violations
+ * become typed errors (e.g. unique violations → `ConflictError`, HTTP 409)
+ * instead of opaque 500s. This is the single mapping point for pooled queries,
+ * the `query` helper and `withTransaction`, so raw pg errors never reach the
+ * error handler. Already-mapped `AppError`s pass through untouched.
+ */
+export function mapDatabaseError(cause: unknown): AppError {
+  if (cause instanceof AppError) return cause;
+  if (isUniqueViolation(cause)) {
+    return new ConflictError('Resource already exists', {
+      details: { code: 'UNIQUE_VIOLATION' },
+    });
+  }
+  return new DatabaseError('Database query failed', { cause });
+}
+
+/**
+ * Wrap the pool's `query` so every repository query funnels through the error
+ * mapping above. The raw cause is logged here, then the mapped error is
+ * thrown; the `ConflictError` carries no raw driver details.
+ */
+const rawQuery = pool.query.bind(pool) as unknown as (
+  text: string,
+  values?: readonly unknown[],
+) => Promise<QueryResult>;
+
+pool.query = (async (text: string, values?: readonly unknown[]) => {
+  try {
+    return await rawQuery(text, values);
+  } catch (cause) {
+    logger.error('Database query failed', { error: cause });
+    throw mapDatabaseError(cause);
+  }
+}) as unknown as typeof pool.query;
+
 /**
  * Execute a single parameterized query against the pool.
  *
  * Always use `$1, $2, ...` placeholders. Never interpolate user input into
- * `text`.
+ * `text`. `pool.query` is already wrapped with error mapping, so this simply
+ * delegates.
  */
 export async function query<R extends QueryResultRow = QueryResultRow>(
   text: string,
   values?: readonly unknown[],
 ): Promise<QueryResult<R>> {
-  try {
-    return await pool.query<R>(text, values as unknown[] | undefined);
-  } catch (cause) {
-    logger.error('Database query failed', { error: cause });
-    throw new DatabaseError('Database query failed', { cause });
-  }
+  return pool.query<R>(text, values as unknown[] | undefined);
 }
 
 /**
@@ -64,9 +109,9 @@ export async function withTransaction<T>(handler: (client: PoolClient) => Promis
       logger.error('Failed to roll back transaction', { error: rollbackError });
     }
 
-    if (cause instanceof DatabaseError) throw cause;
+    if (cause instanceof AppError) throw cause;
     logger.error('Transaction failed', { error: cause });
-    throw new DatabaseError('Transaction failed', { cause });
+    throw mapDatabaseError(cause);
   } finally {
     client.release();
   }
