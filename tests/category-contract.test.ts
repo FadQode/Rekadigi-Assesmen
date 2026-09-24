@@ -74,18 +74,26 @@ describe('category write contract', () => {
   });
 });
 
-describe('unrelated endpoints keep tolerant query parsing', () => {
-  it('ignores unknown query parameters on GET /listings', async () => {
-    const response = await app.handle(
-      new Request('http://localhost/listings?limit=1&utm_source=newsletter'),
-    );
+describe('read endpoints that declare no filters keep tolerant query parsing', () => {
+  it('ignores unknown query parameters on GET /categories', async () => {
+    const response = await app.handle(new Request('http://localhost/categories?trace=1'));
     expect(response.status).toBe(200);
   });
 
-  it('ignores unknown query parameters on GET /categories/:id/listings', async () => {
-    const response = await app.handle(
-      new Request('http://localhost/categories?trace=1'),
-    );
+  it('ignores unknown query parameters on GET /categories/tree', async () => {
+    const response = await app.handle(new Request('http://localhost/categories/tree?trace=1'));
     expect(response.status).toBe(200);
+  });
+
+  /**
+   * The listing search endpoints are deliberately strict, because a silently
+   * dropped filter returns unfiltered rows. That contrast is asserted in
+   * `listing-filters.test.ts`.
+   */
+  it('rejects unknown query parameters on GET /listings', async () => {
+    const response = await app.handle(
+      new Request('http://localhost/listings?limit=1&utm_source=newsletter'),
+    );
+    expect(response.status).toBe(400);
   });
 });

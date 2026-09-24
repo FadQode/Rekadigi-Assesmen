@@ -1,6 +1,8 @@
 import { Elysia } from 'elysia';
+import { rejectUnknownQueryKeys } from '../../shared/utils/strict-input.ts';
 import { listingController } from './listing.controller.ts';
 import {
+  LISTING_SEARCH_QUERY_KEYS,
   createListingBodySchema,
   listingIdParamsSchema,
   searchListingsQuerySchema,
@@ -13,10 +15,15 @@ import {
  *
  * Routes only wire method, path, schemas and controller handlers together.
  * No SQL, no business logic, no data transformation happens here.
+ *
+ * The search endpoints attach `rejectUnknownQueryKeys` so a misspelled or
+ * unsupported filter is reported as a 400 instead of being dropped silently,
+ * which previously returned unfiltered rows for a request that looked filtered.
  */
 export const listingRoutes = new Elysia({ prefix: '/listings', tags: ['Listings'] })
   .get('', listingController.list, {
     query: searchListingsQuerySchema,
+    transform: rejectUnknownQueryKeys(LISTING_SEARCH_QUERY_KEYS),
     detail: {
       summary: 'List and search listings',
       description:
@@ -25,6 +32,7 @@ export const listingRoutes = new Elysia({ prefix: '/listings', tags: ['Listings'
   })
   .get('/search', listingController.search, {
     query: searchListingsQuerySchema,
+    transform: rejectUnknownQueryKeys(LISTING_SEARCH_QUERY_KEYS),
     detail: { summary: 'Search listings' },
   })
   .get('/search/suggest', listingController.suggest, {

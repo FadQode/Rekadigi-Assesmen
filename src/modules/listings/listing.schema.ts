@@ -1,7 +1,36 @@
 import { t } from 'elysia';
 import { uuidSchema } from '../../shared/schemas/index.ts';
 
-export const listingStatusSchema = t.UnionEnum(['available', 'sold', 'pending', 'removed']);
+/**
+ * Lifecycle status values, mirroring the `listings_status_check` constraint.
+ *
+ * Declared as a union of literals rather than `t.UnionEnum`: `UnionEnum` injects
+ * an implicit `default` equal to its first member, so an omitted `?status=`
+ * silently became `status=available`, hiding sold and pending listings. A union
+ * of literals validates the same values, documents as an `enum`, and leaves an
+ * omitted parameter absent so the service applies its own default.
+ */
+export const listingStatusSchema = t.Union([
+  t.Literal('available'),
+  t.Literal('sold'),
+  t.Literal('pending'),
+  t.Literal('removed'),
+]);
+
+export const listingSortBySchema = t.Union([
+  t.Literal('createdAt'),
+  t.Literal('price'),
+  t.Literal('year'),
+  t.Literal('mileage'),
+]);
+
+/**
+ * Sort direction.
+ *
+ * Also a union of literals: `UnionEnum` would default an omitted value to
+ * `asc` and invert the documented `created_at DESC` browse ordering.
+ */
+export const listingSortDirectionSchema = t.Union([t.Literal('asc'), t.Literal('desc')]);
 
 /** Shared path parameter schema for listing-scoped routes. */
 export const listingIdParamsSchema = t.Object({
@@ -43,8 +72,15 @@ export const updateListingBodySchema = t.Partial(createListingBodySchema);
  *
  * Filter values are optional; the service layer applies defaults and builds
  * parameterized SQL conditions.
+ *
+ * Range filters accept both naming conventions because clients reasonably reach
+ * for either. `priceMin`/`priceMax`/`yearMin`/`yearMax`/`mileageMax` are
+ * canonical; `minPrice`/`maxPrice`/`minYear`/`maxYear`/`maxMileage` are
+ * accepted aliases. When both forms are supplied the canonical one wins. The
+ * aliases exist because an unrecognised name used to be dropped silently, so a
+ * request that looked filtered returned unfiltered rows.
  */
-export const searchListingsQuerySchema = t.Object({
+const searchListingsQueryProperties = {
   q: t.Optional(t.String({ maxLength: 200, description: 'Free-text search query' })),
   categoryId: t.Optional(uuidSchema()),
   includeDescendants: t.Optional(t.BooleanString({ description: 'Include descendant categories' })),
@@ -55,19 +91,35 @@ export const searchListingsQuerySchema = t.Object({
   fuelType: t.Optional(t.String({ maxLength: 30 })),
   color: t.Optional(t.String({ maxLength: 50 })),
   city: t.Optional(t.String({ maxLength: 100 })),
-  priceMin: t.Optional(t.Number({ minimum: 0 })),
-  priceMax: t.Optional(t.Number({ minimum: 0 })),
-  yearMin: t.Optional(t.Integer({ minimum: 1886 })),
-  yearMax: t.Optional(t.Integer({ minimum: 1886 })),
-  mileageMax: t.Optional(t.Integer({ minimum: 0 })),
+  priceMin: t.Optional(t.Number({ minimum: 0, description: 'Minimum price (inclusive)' })),
+  priceMax: t.Optional(t.Number({ minimum: 0, description: 'Maximum price (inclusive)' })),
+  yearMin: t.Optional(t.Integer({ minimum: 1886, description: 'Earliest model year (inclusive)' })),
+  yearMax: t.Optional(t.Integer({ minimum: 1886, description: 'Latest model year (inclusive)' })),
+  mileageMax: t.Optional(t.Integer({ minimum: 0, description: 'Maximum mileage (inclusive)' })),
+  minPrice: t.Optional(t.Number({ minimum: 0, description: 'Alias for priceMin' })),
+  maxPrice: t.Optional(t.Number({ minimum: 0, description: 'Alias for priceMax' })),
+  minYear: t.Optional(t.Integer({ minimum: 1886, description: 'Alias for yearMin' })),
+  maxYear: t.Optional(t.Integer({ minimum: 1886, description: 'Alias for yearMax' })),
+  maxMileage: t.Optional(t.Integer({ minimum: 0, description: 'Alias for mileageMax' })),
   status: t.Optional(listingStatusSchema),
-  sortBy: t.Optional(t.UnionEnum(['createdAt', 'price', 'year', 'mileage'])),
-  sortDirection: t.Optional(t.UnionEnum(['asc', 'desc'])),
+  sortBy: t.Optional(listingSortBySchema),
+  sortDirection: t.Optional(listingSortDirectionSchema),
   limit: t.Optional(t.Integer({ minimum: 1, maximum: 100, default: 20 })),
   cursor: t.Optional(
     t.String({ maxLength: 512, description: 'Opaque cursor from a previous page' }),
   ),
-});
+};
+
+export const searchListingsQuerySchema = t.Object(searchListingsQueryProperties);
+
+/**
+ * Every query parameter the listing search endpoints accept.
+ *
+ * Derived from the schema above so route-level validation and the documented
+ * contract cannot drift. Used to reject unrecognised parameters instead of
+ * letting Elysia strip them, which would silently return unfiltered results.
+ */
+export const LISTING_SEARCH_QUERY_KEYS = Object.keys(searchListingsQueryProperties);
 
 export const suggestListingsQuerySchema = t.Object({
   q: t.String({

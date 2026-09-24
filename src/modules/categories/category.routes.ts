@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { rejectUnknownBodyKeys } from '../../shared/utils/strict-body.ts';
+import { rejectUnknownBodyKeys } from '../../shared/utils/strict-input.ts';
 import { categoryController } from './category.controller.ts';
 import {
   CATEGORY_WRITE_FIELDS,

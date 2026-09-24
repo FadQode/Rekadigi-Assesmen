@@ -55,7 +55,15 @@ export class ListingController {
     return null;
   };
 
-  /** Normalize query parameters into the service/repository filter contract. */
+  /**
+   * Normalize query parameters into the service/repository filter contract.
+   *
+   * Range filters accept both naming conventions. The canonical names
+   * (`priceMin`, `priceMax`, `yearMin`, `yearMax`, `mileageMax`) take
+   * precedence; the aliases (`minPrice`, `maxPrice`, `minYear`, `maxYear`,
+   * `maxMileage`) are accepted so a client using the other convention is still
+   * filtered correctly rather than having the bound dropped.
+   */
   private toFilters(query: SearchListingsQuery): ListingSearchFilters {
     return {
       text: query.q,
@@ -68,11 +76,11 @@ export class ListingController {
       fuelType: query.fuelType,
       color: query.color,
       city: query.city,
-      priceMin: query.priceMin,
-      priceMax: query.priceMax,
-      yearMin: query.yearMin,
-      yearMax: query.yearMax,
-      mileageMax: query.mileageMax,
+      priceMin: query.priceMin ?? query.minPrice,
+      priceMax: query.priceMax ?? query.maxPrice,
+      yearMin: query.yearMin ?? query.minYear,
+      yearMax: query.yearMax ?? query.maxYear,
+      mileageMax: query.mileageMax ?? query.maxMileage,
       status: query.status,
       limit: query.limit ?? 20,
       cursor: query.cursor,

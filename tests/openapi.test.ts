@@ -100,6 +100,43 @@ describe('OpenAPI documentation', () => {
   });
 
   /**
+   * The documented query parameters must match what the routes accept, in both
+   * directions: a documented filter has to work, and an accepted filter has to
+   * be documented so clients can discover it.
+   */
+  it('documents the listing search query parameters', async () => {
+    const response = await app.handle(new Request('http://localhost/docs/json'));
+    const spec = (await response.json()) as {
+      paths: Record<string, { get?: { parameters?: Array<{ name: string }> } }>;
+    };
+
+    const documented = (spec.paths['/listings']?.get?.parameters ?? []).map((p) => p.name);
+
+    for (const name of [
+      'make',
+      'model',
+      'fuelType',
+      'minPrice',
+      'maxPrice',
+      'minYear',
+      'maxYear',
+      'maxMileage',
+      'priceMin',
+      'priceMax',
+      'yearMin',
+      'yearMax',
+      'mileageMax',
+      'sortBy',
+      'limit',
+      'cursor',
+    ]) {
+      expect(documented).toContain(name);
+    }
+
+    expect(spec.paths['/listings/search']?.get?.parameters?.map((p) => p.name)).toEqual(documented);
+  });
+
+  /**
    * The category writes carry a custom `transform` guard. It must not erase the
    * documented request body, and the schema must expose only persisted fields.
    */
