@@ -3,7 +3,7 @@ import { logger, type LogLevel } from '../shared/logger.ts';
 type NodeEnv = 'development' | 'test' | 'production';
 
 function readString(key: string, fallback?: string): string {
-  const value = Bun.env[key];
+  const value = process.env[key];
   if (value === undefined || value === '') {
     if (fallback !== undefined) return fallback;
     throw new Error(`Missing required environment variable: ${key}`);
@@ -12,7 +12,7 @@ function readString(key: string, fallback?: string): string {
 }
 
 function readNumber(key: string, fallback: number): number {
-  const raw = Bun.env[key];
+  const raw = process.env[key];
   if (raw === undefined || raw === '') return fallback;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) {
@@ -22,7 +22,7 @@ function readNumber(key: string, fallback: number): number {
 }
 
 function readNodeEnv(): NodeEnv {
-  const raw = Bun.env.NODE_ENV ?? 'development';
+  const raw = process.env.NODE_ENV ?? 'development';
   if (raw !== 'development' && raw !== 'test' && raw !== 'production') {
     throw new Error(`NODE_ENV must be one of development | test | production (received "${raw}")`);
   }
@@ -30,7 +30,7 @@ function readNodeEnv(): NodeEnv {
 }
 
 function readLogLevel(): LogLevel {
-  const raw = (Bun.env.LOG_LEVEL ?? 'info').toLowerCase();
+  const raw = (process.env.LOG_LEVEL ?? 'info').toLowerCase();
   if (raw !== 'debug' && raw !== 'info' && raw !== 'warn' && raw !== 'error') {
     throw new Error(`LOG_LEVEL must be one of debug | info | warn | error (received "${raw}")`);
   }
