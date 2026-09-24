@@ -187,6 +187,8 @@ navigate any domain by convention.
 Three tables plus the migration bookkeeping table. Schema lives entirely in SQL
 migrations; there are no model classes or generated schema types.
 
+DB Diagram ERD: https://dbdiagram.io/d/6ab5240b0f25a52d01f91b20
+
 ### `categories`
 
 | Column | Type | Notes |
