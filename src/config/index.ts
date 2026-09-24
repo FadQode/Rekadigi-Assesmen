@@ -1,1 +1,1 @@
-export { env, isProduction, isTest } from './env.ts';
+export { env, isProduction, isTest } from './env';

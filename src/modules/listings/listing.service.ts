@@ -1,8 +1,8 @@
-import { NotFoundError, ValidationError } from '../../shared/errors/http-errors.ts';
-import { categoryRepository, type CategoryRepository } from '../categories/category.repository.ts';
-import { filterRepository, type FilterRepository } from '../filters/filter.repository.ts';
-import type { FilterAttribute } from '../filters/filter.types.ts';
-import { listingRepository, type ListingRepository } from './listing.repository.ts';
+import { NotFoundError, ValidationError } from '../../shared/errors/http-errors';
+import { categoryRepository, type CategoryRepository } from '../categories/category.repository';
+import { filterRepository, type FilterRepository } from '../filters/filter.repository';
+import type { FilterAttribute } from '../filters/filter.types';
+import { listingRepository, type ListingRepository } from './listing.repository';
 import type {
   CreateListingData,
   Listing,
@@ -12,7 +12,7 @@ import type {
   ListingSearchResult,
   ListingSuggestion,
   UpdateListingData,
-} from './listing.types.ts';
+} from './listing.types';
 
 /**
  * Application/business logic for listings.

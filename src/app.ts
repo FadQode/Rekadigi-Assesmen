@@ -1,10 +1,10 @@
 import { Elysia } from 'elysia';
 import { openapi } from '@elysiajs/openapi';
-import { errorHandler } from './middleware/error-handler.ts';
-import { notFoundHandler } from './middleware/not-found.ts';
-import { categoryRoutes, filterRoutes, listingRoutes } from './modules/index.ts';
-import { healthRoutes } from './health.routes.ts';
-import type { ApiErrorBody } from './shared/types/api.ts';
+import { errorHandler } from './middleware/error-handler';
+import { notFoundHandler } from './middleware/not-found';
+import { categoryRoutes, filterRoutes, listingRoutes } from './modules/index';
+import { healthRoutes } from './health.routes';
+import type { ApiErrorBody } from './shared/types/api';
 
 export const errorResponseSchema = {
   type: 'object',

@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia';
-import { rejectUnknownQueryKeys } from '../../shared/utils/strict-input.ts';
-import { listingController } from './listing.controller.ts';
+import { rejectUnknownQueryKeys } from '../../shared/utils/strict-input';
+import { listingController } from './listing.controller';
 import {
   LISTING_SEARCH_QUERY_KEYS,
   createListingBodySchema,
@@ -8,7 +8,7 @@ import {
   searchListingsQuerySchema,
   suggestListingsQuerySchema,
   updateListingBodySchema,
-} from './listing.schema.ts';
+} from './listing.schema';
 
 /**
  * HTTP surface of the Listings module.

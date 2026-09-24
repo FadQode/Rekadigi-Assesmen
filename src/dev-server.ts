@@ -1,7 +1,7 @@
-import { app } from './app.ts';
-import { env } from './config/env.ts';
-import { closePool, checkDatabaseConnection } from './database/pool.ts';
-import { logger } from './shared/logger.ts';
+import { app } from './app';
+import { env } from './config/env';
+import { closePool, checkDatabaseConnection } from './database/pool';
+import { logger } from './shared/logger';
 
 /**
  * Process entrypoint.

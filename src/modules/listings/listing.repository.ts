@@ -1,6 +1,6 @@
-import { pool, type Queryable } from '../../database/pool.ts';
-import { ValidationError } from '../../shared/errors/http-errors.ts';
-import { decodeCursor, encodeCursor } from '../../shared/utils/cursor.ts';
+import { pool, type Queryable } from '../../database/pool';
+import { ValidationError } from '../../shared/errors/http-errors';
+import { decodeCursor, encodeCursor } from '../../shared/utils/cursor';
 import type {
   CreateListingData,
   Listing,
@@ -11,7 +11,7 @@ import type {
   ListingStatus,
   ListingSuggestion,
   UpdateListingData,
-} from './listing.types.ts';
+} from './listing.types';
 
 /**
  * Persistence boundary for the Listings module.

@@ -1,4 +1,4 @@
-import { AppError } from './app-error.ts';
+import { AppError } from './app-error';
 
 /**
  * Low-level database failure.

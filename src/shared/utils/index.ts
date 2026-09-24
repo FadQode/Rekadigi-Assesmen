@@ -1,3 +1,3 @@
-export { encodeCursor, decodeCursor } from './cursor.ts';
-export { clamp, compact } from './helpers.ts';
-export { rejectUnknownBodyKeys, rejectUnknownQueryKeys } from './strict-input.ts';
+export { encodeCursor, decodeCursor } from './cursor';
+export { clamp, compact } from './helpers';
+export { rejectUnknownBodyKeys, rejectUnknownQueryKeys } from './strict-input';

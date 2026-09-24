@@ -1,5 +1,5 @@
 import { t } from 'elysia';
-import { uuidSchema } from '../../shared/schemas/index.ts';
+import { uuidSchema } from '../../shared/schemas/index';
 
 export const filterCategoryParamsSchema = t.Object({
   categoryId: uuidSchema('Category identifier (UUID)'),

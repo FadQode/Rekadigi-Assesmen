@@ -1,4 +1,4 @@
-import { AppError } from './app-error.ts';
+import { AppError } from './app-error';
 
 /** Request payload or query parameters failed validation. */
 export class ValidationError extends AppError {

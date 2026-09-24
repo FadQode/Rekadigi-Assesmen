@@ -1,10 +1,10 @@
 import { Elysia } from 'elysia';
-import { filterController } from './filter.controller.ts';
+import { filterController } from './filter.controller';
 import {
   facetCountsQuerySchema,
   filterCategoryParamsSchema,
   filterQuerySchema,
-} from './filter.schema.ts';
+} from './filter.schema';
 
 /**
  * HTTP surface of the Filters module.

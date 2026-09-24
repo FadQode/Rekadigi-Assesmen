@@ -1,9 +1,9 @@
 import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from 'pg';
-import { env } from '../config/env.ts';
-import { AppError } from '../shared/errors/app-error.ts';
-import { DatabaseError } from '../shared/errors/database-error.ts';
-import { ConflictError } from '../shared/errors/http-errors.ts';
-import { logger } from '../shared/logger.ts';
+import { env } from '../config/env';
+import { AppError } from '../shared/errors/app-error';
+import { DatabaseError } from '../shared/errors/database-error';
+import { ConflictError } from '../shared/errors/http-errors';
+import { logger } from '../shared/logger';
 
 /**
  * Minimal interface implemented by both the pool and a pooled client so that

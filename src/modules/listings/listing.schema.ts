@@ -1,5 +1,5 @@
 import { t } from 'elysia';
-import { uuidSchema } from '../../shared/schemas/index.ts';
+import { uuidSchema } from '../../shared/schemas/index';
 
 /**
  * Lifecycle status values, mirroring the `listings_status_check` constraint.

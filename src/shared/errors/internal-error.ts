@@ -1,4 +1,4 @@
-import { AppError } from './app-error.ts';
+import { AppError } from './app-error';
 
 /** Unexpected non-operational failure. The cause is logged, never returned. */
 export class InternalServerError extends AppError {

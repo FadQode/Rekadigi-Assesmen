@@ -1,4 +1,4 @@
-import { AppError } from './app-error.ts';
+import { AppError } from './app-error';
 
 /**
  * Feature is intentionally scaffolded but not yet implemented (later phase).

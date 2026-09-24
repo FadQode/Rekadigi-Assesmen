@@ -1,13 +1,13 @@
-import { ConflictError, NotFoundError } from '../../shared/errors/http-errors.ts';
-import { listingService, type ListingService } from '../listings/listing.service.ts';
-import type { ListingSearchFilters, ListingSearchResult } from '../listings/listing.types.ts';
-import { categoryRepository, type CategoryRepository } from './category.repository.ts';
+import { ConflictError, NotFoundError } from '../../shared/errors/http-errors';
+import { listingService, type ListingService } from '../listings/listing.service';
+import type { ListingSearchFilters, ListingSearchResult } from '../listings/listing.types';
+import { categoryRepository, type CategoryRepository } from './category.repository';
 import type {
   Category,
   CategoryTreeNode,
   CreateCategoryData,
   UpdateCategoryData,
-} from './category.types.ts';
+} from './category.types';
 
 /**
  * Application/business logic for the category hierarchy.

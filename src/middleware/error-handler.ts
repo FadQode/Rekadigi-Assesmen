@@ -1,10 +1,10 @@
 import { Elysia } from 'elysia';
-import { AppError } from '../shared/errors/app-error.ts';
-import { ValidationError } from '../shared/errors/http-errors.ts';
-import { InternalServerError } from '../shared/errors/internal-error.ts';
-import { logger } from '../shared/logger.ts';
-import { isProduction } from '../config/env.ts';
-import type { ApiErrorBody } from '../shared/types/api.ts';
+import { AppError } from '../shared/errors/app-error';
+import { ValidationError } from '../shared/errors/http-errors';
+import { InternalServerError } from '../shared/errors/internal-error';
+import { logger } from '../shared/logger';
+import { isProduction } from '../config/env';
+import type { ApiErrorBody } from '../shared/types/api';
 
 /** Elysia may surface non-`Error` values (e.g. custom status responses). */
 function describe(error: unknown): string {

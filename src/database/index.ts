@@ -5,4 +5,4 @@ export {
   checkDatabaseConnection,
   closePool,
   type Queryable,
-} from './pool.ts';
+} from './pool';

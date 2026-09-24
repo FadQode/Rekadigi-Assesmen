@@ -1,11 +1,11 @@
 import type { Static } from 'elysia';
-import type { HttpContext } from '../../shared/types/http.ts';
-import { filterService, type FilterService } from './filter.service.ts';
+import type { HttpContext } from '../../shared/types/http';
+import { filterService, type FilterService } from './filter.service';
 import type {
   facetCountsQuerySchema,
   filterCategoryParamsSchema,
   filterQuerySchema,
-} from './filter.schema.ts';
+} from './filter.schema';
 
 type FilterQueryParams = Static<typeof filterQuerySchema>;
 type FilterCategoryParams = Static<typeof filterCategoryParamsSchema>;

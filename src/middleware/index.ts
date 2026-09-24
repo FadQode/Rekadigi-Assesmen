@@ -1,2 +1,2 @@
-export { errorHandler } from './error-handler.ts';
-export { notFoundHandler } from './not-found.ts';
+export { errorHandler } from './error-handler';
+export { notFoundHandler } from './not-found';

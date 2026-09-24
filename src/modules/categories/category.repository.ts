@@ -1,10 +1,10 @@
-import { pool, type Queryable } from '../../database/pool.ts';
+import { pool, type Queryable } from '../../database/pool';
 import type {
   Category,
   CategoryTreeNode,
   CreateCategoryData,
   UpdateCategoryData,
-} from './category.types.ts';
+} from './category.types';
 
 /**
  * Persistence boundary for the Categories module.

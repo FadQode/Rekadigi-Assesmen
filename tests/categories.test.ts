@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { CategoryService } from '../src/modules/categories/category.service.ts';
-import type { CategoryRepository } from '../src/modules/categories/category.repository.ts';
-import type { Category, CategoryTreeNode, CreateCategoryData, UpdateCategoryData } from '../src/modules/categories/category.types.ts';
-import type { ListingService } from '../src/modules/listings/listing.service.ts';
+import { CategoryService } from '../src/modules/categories/category.service';
+import type { CategoryRepository } from '../src/modules/categories/category.repository';
+import type { Category, CategoryTreeNode, CreateCategoryData, UpdateCategoryData } from '../src/modules/categories/category.types';
+import type { ListingService } from '../src/modules/listings/listing.service';
 
 const ROOT = 'aaaaaaaa-0000-0000-0000-000000000001';
 const CHILD = 'aaaaaaaa-0000-0000-0000-000000000002';

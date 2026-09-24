@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { Elysia } from 'elysia';
-import { mapDatabaseError } from '../src/database/pool.ts';
-import { ConflictError } from '../src/shared/errors/http-errors.ts';
-import { DatabaseError } from '../src/shared/errors/database-error.ts';
-import { errorHandler } from '../src/middleware/error-handler.ts';
+import { mapDatabaseError } from '../src/database/pool';
+import { ConflictError } from '../src/shared/errors/http-errors';
+import { DatabaseError } from '../src/shared/errors/database-error';
+import { errorHandler } from '../src/middleware/error-handler';
 
 describe('PostgreSQL unique-constraint error mapping', () => {
   it('maps error code 23505 to ConflictError (409)', () => {

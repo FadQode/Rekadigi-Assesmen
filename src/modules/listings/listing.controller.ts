@@ -1,14 +1,14 @@
 import type { Static } from 'elysia';
-import type { HttpContext } from '../../shared/types/http.ts';
-import { listingService, type ListingService } from './listing.service.ts';
+import type { HttpContext } from '../../shared/types/http';
+import { listingService, type ListingService } from './listing.service';
 import type {
   createListingBodySchema,
   searchListingsQuerySchema,
   suggestListingsQuerySchema,
   updateListingBodySchema,
   listingIdParamsSchema,
-} from './listing.schema.ts';
-import type { ListingSearchFilters } from './listing.types.ts';
+} from './listing.schema';
+import type { ListingSearchFilters } from './listing.types';
 
 type ListingIdParams = Static<typeof listingIdParamsSchema>;
 type CreateListingBody = Static<typeof createListingBodySchema>;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { app } from '../src/app.ts';
+import { app } from '../src/app';
 
 describe('OpenAPI documentation', () => {
   it('serves the OpenAPI JSON specification', async () => {

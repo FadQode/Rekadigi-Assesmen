@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { pool } from '../pool.ts';
+import { pool } from '../pool';
 
 const SEED = 0x5eed2026;
 

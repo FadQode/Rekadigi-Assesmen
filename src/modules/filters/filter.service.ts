@@ -1,7 +1,7 @@
-import { NotFoundError } from '../../shared/errors/http-errors.ts';
-import { categoryRepository, type CategoryRepository } from '../categories/category.repository.ts';
-import { filterRepository, type FilterRepository } from './filter.repository.ts';
-import type { FilterAttribute, FilterWithCounts } from './filter.types.ts';
+import { NotFoundError } from '../../shared/errors/http-errors';
+import { categoryRepository, type CategoryRepository } from '../categories/category.repository';
+import { filterRepository, type FilterRepository } from './filter.repository';
+import type { FilterAttribute, FilterWithCounts } from './filter.types';
 
 /**
  * Application/business logic for filter definitions and facets.

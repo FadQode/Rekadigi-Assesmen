@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { checkDatabaseConnection } from './database/pool.ts';
+import { checkDatabaseConnection } from './database/pool';
 
 /**
  * Operational endpoints.

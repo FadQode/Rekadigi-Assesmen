@@ -1,4 +1,4 @@
-import { ValidationError } from '../errors/http-errors.ts';
+import { ValidationError } from '../errors/http-errors';
 
 /** Reject an object containing keys outside `allowed`. */
 function assertNoUnknownKeys(

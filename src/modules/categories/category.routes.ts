@@ -1,13 +1,13 @@
 import { Elysia } from 'elysia';
-import { rejectUnknownBodyKeys } from '../../shared/utils/strict-input.ts';
-import { categoryController } from './category.controller.ts';
+import { rejectUnknownBodyKeys } from '../../shared/utils/strict-input';
+import { categoryController } from './category.controller';
 import {
   CATEGORY_WRITE_FIELDS,
   categoryIdParamsSchema,
   categoryListingsQuerySchema,
   createCategoryBodySchema,
   updateCategoryBodySchema,
-} from './category.schema.ts';
+} from './category.schema';
 
 /**
  * HTTP surface of the Categories module.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { decodeCursor, encodeCursor } from '../src/shared/utils/cursor.ts';
+import { decodeCursor, encodeCursor } from '../src/shared/utils/cursor';
 
 describe('cursor pagination encoding', () => {
   it('round-trips a cursor payload', () => {

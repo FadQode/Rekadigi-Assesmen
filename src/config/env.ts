@@ -1,4 +1,4 @@
-import { logger, type LogLevel } from '../shared/logger.ts';
+import { logger, type LogLevel } from '../shared/logger';
 
 type NodeEnv = 'development' | 'test' | 'production';
 

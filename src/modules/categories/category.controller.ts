@@ -1,12 +1,12 @@
 import type { Static } from 'elysia';
-import type { HttpContext } from '../../shared/types/http.ts';
-import { categoryService, type CategoryService } from './category.service.ts';
+import type { HttpContext } from '../../shared/types/http';
+import { categoryService, type CategoryService } from './category.service';
 import type {
   categoryIdParamsSchema,
   categoryListingsQuerySchema,
   createCategoryBodySchema,
   updateCategoryBodySchema,
-} from './category.schema.ts';
+} from './category.schema';
 
 type CategoryIdParams = Static<typeof categoryIdParamsSchema>;
 type CreateCategoryBody = Static<typeof createCategoryBodySchema>;

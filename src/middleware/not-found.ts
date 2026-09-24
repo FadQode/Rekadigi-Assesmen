@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import type { ApiErrorBody } from '../shared/types/api.ts';
+import type { ApiErrorBody } from '../shared/types/api';
 
 /**
  * Catch-all 404 handler.

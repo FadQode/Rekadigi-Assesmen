@@ -1,11 +1,11 @@
-import { pool, type Queryable } from '../../database/pool.ts';
+import { pool, type Queryable } from '../../database/pool';
 import type {
   FilterAttribute,
   FilterAttributeType,
   FilterOption,
   FilterQuery,
   FilterWithCounts,
-} from './filter.types.ts';
+} from './filter.types';
 
 /**
  * Persistence boundary for the Filters module.

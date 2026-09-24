@@ -1,4 +1,4 @@
-import type { PaginatedResponse } from '../../shared/types/api.ts';
+import type { PaginatedResponse } from '../../shared/types/api';
 
 /**
  * Lifecycle state of a listing.

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { pool } from './pool.ts';
+import { pool } from './pool';
 
 const MIGRATIONS_DIR = join(import.meta.dir, 'migrations');
 

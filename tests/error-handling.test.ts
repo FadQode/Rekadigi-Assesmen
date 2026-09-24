@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { app } from '../src/app.ts';
+import { app } from '../src/app';
 
 interface ApiErrorBody {
   error: { code: string; message: string };
