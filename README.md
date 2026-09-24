@@ -139,7 +139,7 @@ Cross-cutting concerns live once:
 ```
 src/
 ├── app.ts                      # Elysia composition, OpenAPI, route mounting
-├── server.ts                   # Process entrypoint, startup + graceful shutdown
+├── dev-server.ts               # Process entrypoint, startup + graceful shutdown
 ├── health.routes.ts            # /health readiness, /health/live liveness
 ├── config/
 │   ├── env.ts                  # Validated environment model
@@ -640,7 +640,7 @@ The API is then at `http://localhost:3000`, the docs UI at
 |---|---|
 | `bun run dev` | Watch-mode dev server |
 | `bun run start` | Start the server once |
-| `bun run build` | Bundle `src/server.ts` for Bun into `dist/` |
+| `bun run build` | Bundle `src/dev-server.ts` for Bun into `dist/` |
 | `bun run db:migrate` | Apply pending SQL migrations |
 | `bun run db:seed` | Seed categories, filter attributes and listings |
 | `bun test` | Run the test suite |

@@ -70,7 +70,7 @@ export type { ApiErrorBody };
  * Vercel's Elysia integration detects `src/app.ts` and expects the application
  * itself as the module's default export; it invokes the instance per request
  * rather than running a listening server. `app` already satisfies that handler
- * contract. `src/server.ts` remains the local/Docker bootstrap that calls
+ * contract. `src/dev-server.ts` remains the local/Docker bootstrap that calls
  * `app.listen()` and is not used by Vercel.
  */
 export default app;
