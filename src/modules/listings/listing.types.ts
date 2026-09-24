@@ -127,6 +127,18 @@ export interface ListingSearchResult extends PaginatedResponse<Listing> {
   total?: number;
 }
 
+/**
+ * A single typeahead suggestion returned by `GET /listings/search/suggest`.
+ *
+ * `value` is the stored display-case text (e.g. `Toyota`), not a lowercased
+ * form, so it can be reused directly as the case-sensitive `make`/`model`
+ * search filter.
+ *
+ * Only `'make'` and `'model'` are currently produced. `'title'` is retained in
+ * the union for forward compatibility so that adding title suggestions later
+ * does not widen the type; it is never returned today because title matching is
+ * not implemented and has no trigram index.
+ */
 export interface ListingSuggestion {
   value: string;
   type: 'make' | 'model' | 'title';

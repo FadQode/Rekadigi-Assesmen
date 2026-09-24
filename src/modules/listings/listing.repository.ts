@@ -1,6 +1,5 @@
 import { pool, type Queryable } from '../../database/pool.ts';
 import { ValidationError } from '../../shared/errors/http-errors.ts';
-import { NotImplementedError } from '../../shared/errors/not-implemented-error.ts';
 import { decodeCursor, encodeCursor } from '../../shared/utils/cursor.ts';
 import type {
   CreateListingData,
@@ -523,10 +522,54 @@ export class PostgresListingRepository implements ListingRepository {
     return response;
   }
 
-  async suggest(_prefix: string, _limit: number): Promise<ListingSuggestion[]> {
-    // Intentionally deferred: typeahead suggestions are a later phase and are
-    // outside the current CRUD/browse repository scope.
-    throw new NotImplementedError('ListingRepository.suggest is implemented in a later phase');
+  /**
+   * Typeahead suggestions for `make` and `model`.
+   *
+   * Matching is done entirely in PostgreSQL using `pg_trgm`:
+   *
+   * - prefix/partial: `lower(make) LIKE '%q%'`, indexable by the
+   *   `gin_trgm_ops` indexes;
+   * - fuzzy: the trigram similarity operator `%`, which absorbs typos.
+   *
+   * Both predicates are covered by `idx_listings_make_trgm` and
+   * `idx_listings_model_trgm`, so the plan is a bitmap index scan rather than a
+   * sequential scan. Only the bounded result set is transferred; no listing or
+   * distinct-value inventory is loaded into the application.
+   *
+   * The stored display-case value is returned (not the lowercased form) so the
+   * suggestion stays usable as the case-sensitive `?make=` / `?model=` filter
+   * value in `search`.
+   */
+  async suggest(prefix: string, limit: number): Promise<ListingSuggestion[]> {
+    const normalized = prefix.trim().toLowerCase();
+    if (normalized.length === 0) return [];
+
+    const escaped = escapeLikePattern(normalized);
+    const boundedLimit = Math.max(1, Math.trunc(limit));
+
+    const result = await this.db.query<ListingSuggestion>(
+      `WITH candidates AS (
+         SELECT lower(make) AS normalized, make AS raw, 'make' AS type
+         FROM listings
+         WHERE deleted_at IS NULL
+           AND status <> 'removed'
+           AND (lower(make) LIKE $1 OR lower(make) % $2)
+         UNION ALL
+         SELECT lower(model) AS normalized, model AS raw, 'model' AS type
+         FROM listings
+         WHERE deleted_at IS NULL
+           AND status <> 'removed'
+           AND (lower(model) LIKE $1 OR lower(model) % $2)
+       )
+       SELECT min(raw) AS value, min(type) AS type
+       FROM candidates
+       GROUP BY normalized
+       ORDER BY (normalized LIKE $3) DESC, similarity(normalized, $2) DESC, min(raw) ASC
+       LIMIT $4::integer`,
+      [`%${escaped}%`, normalized, `${escaped}%`, boundedLimit],
+    );
+
+    return result.rows;
   }
 
   /**
@@ -545,6 +588,17 @@ export class PostgresListingRepository implements ListingRepository {
     );
     return result.rows[0]?.count ?? 0;
   }
+}
+
+/**
+ * Escape LIKE metacharacters in a user-supplied pattern fragment.
+ *
+ * Without this a query of `%` or `_` would act as a wildcard and widen the
+ * match far beyond what the user typed. PostgreSQL's default LIKE escape
+ * character is a backslash, so no `ESCAPE` clause is required.
+ */
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
 }
 
 function decodeListingCursor(cursor: string): ListingCursorPayload {

@@ -5,6 +5,20 @@ export const categoryIdParamsSchema = t.Object({
   id: uuidSchema('Category identifier (UUID)'),
 });
 
+/**
+ * Category write body.
+ *
+ * Deliberately limited to the persisted contract: `categories` stores
+ * `parent_id`, `name`, `slug`, `path` and `depth` only. Earlier revisions also
+ * advertised `description` and `position`; neither exists as a column and
+ * neither is part of the architecture's Categories responsibilities, so they
+ * were silently discarded. They are removed here, and the routes attach
+ * `rejectUnknownBodyKeys` so unknown fields are rejected at the boundary
+ * instead of being dropped.
+ *
+ * `parentId` semantics: omitted keeps the current parent, a UUID moves the
+ * category under that parent, and `null` moves it to the root.
+ */
 export const createCategoryBodySchema = t.Object({
   parentId: t.Optional(t.Nullable(uuidSchema())),
   name: t.String({ minLength: 1, maxLength: 150 }),
@@ -14,9 +28,15 @@ export const createCategoryBodySchema = t.Object({
     pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
     description: 'URL-safe identifier, e.g. "sports-cars"',
   }),
-  description: t.Optional(t.Nullable(t.String({ maxLength: 2000 }))),
-  position: t.Optional(t.Integer({ minimum: 0, description: 'Sibling ordering hint' })),
 });
+
+/**
+ * The only fields a category write may contain.
+ *
+ * Single source of truth for both the schema above and the route-level
+ * unknown-field guard, so the two can never drift apart.
+ */
+export const CATEGORY_WRITE_FIELDS = ['parentId', 'name', 'slug'] as const;
 
 export const updateCategoryBodySchema = t.Partial(createCategoryBodySchema);
 

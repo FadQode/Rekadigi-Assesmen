@@ -72,9 +72,16 @@ export class CategoryService {
   /**
    * A category cannot be placed under itself or one of its own descendants,
    * which would create a cycle. Resolved in SQL via the ancestor set.
+   *
+   * `null` is *not* a cycle candidate: the contract defines
+   * `parentId: null` as "move to the root", and the root has no ancestors, so
+   * it can never form a cycle. Treating `null` as a self-parent was a bug that
+   * made "move to root" unreachable with a misleading `CATEGORY_CYCLE` (409).
    */
   private async assertParentIsNotDescendant(id: string, parentId: string | null): Promise<void> {
-    if (parentId === null || parentId === id) {
+    if (parentId === null) return;
+
+    if (parentId === id) {
       throw new ConflictError('A category cannot be its own parent', {
         details: { code: 'CATEGORY_CYCLE' },
       });

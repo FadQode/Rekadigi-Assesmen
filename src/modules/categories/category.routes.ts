@@ -1,6 +1,8 @@
 import { Elysia } from 'elysia';
+import { rejectUnknownBodyKeys } from '../../shared/utils/strict-body.ts';
 import { categoryController } from './category.controller.ts';
 import {
+  CATEGORY_WRITE_FIELDS,
   categoryIdParamsSchema,
   categoryListingsQuerySchema,
   createCategoryBodySchema,
@@ -11,6 +13,9 @@ import {
  * HTTP surface of the Categories module.
  *
  * Routes only wire method, path, schemas and controller handlers together.
+ *
+ * Category writes attach `rejectUnknownBodyKeys` so fields the schema does not
+ * declare are rejected rather than silently stripped.
  */
 export const categoryRoutes = new Elysia({ prefix: '/categories', tags: ['Categories'] })
   .get('', categoryController.list, {
@@ -30,10 +35,12 @@ export const categoryRoutes = new Elysia({ prefix: '/categories', tags: ['Catego
   })
   .post('', categoryController.create, {
     body: createCategoryBodySchema,
+    transform: rejectUnknownBodyKeys(CATEGORY_WRITE_FIELDS),
     detail: { summary: 'Create a category' },
   })
   .patch('/:id', categoryController.update, {
     params: categoryIdParamsSchema,
     body: updateCategoryBodySchema,
+    transform: rejectUnknownBodyKeys(CATEGORY_WRITE_FIELDS),
     detail: { summary: 'Update a category' },
   });

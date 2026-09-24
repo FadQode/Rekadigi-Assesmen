@@ -70,6 +70,12 @@ export const searchListingsQuerySchema = t.Object({
 });
 
 export const suggestListingsQuerySchema = t.Object({
-  q: t.String({ minLength: 1, maxLength: 100, description: 'Prefix to complete' }),
-  limit: t.Optional(t.Integer({ minimum: 1, maximum: 20, default: 5 })),
+  q: t.String({
+    minLength: 1,
+    maxLength: 100,
+    description: 'Text to complete against make and model (prefix, partial or fuzzy)',
+  }),
+  limit: t.Optional(
+    t.Integer({ minimum: 1, maximum: 20, default: 5, description: 'Maximum suggestions to return' }),
+  ),
 });

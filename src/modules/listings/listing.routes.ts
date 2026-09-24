@@ -29,7 +29,11 @@ export const listingRoutes = new Elysia({ prefix: '/listings', tags: ['Listings'
   })
   .get('/search/suggest', listingController.suggest, {
     query: suggestListingsQuerySchema,
-    detail: { summary: 'Typeahead suggestions for make, model and title' },
+    detail: {
+      summary: 'Typeahead suggestions for make and model',
+      description:
+        'Returns distinct make and model values matching the query. Matching is performed in PostgreSQL using pg_trgm, so partial, case-insensitive and fuzzy (typo-tolerant) input all match. Values are returned in their stored display casing so they can be reused directly as make/model filters. Title suggestions are not supported.',
+    },
   })
   .get('/:id', listingController.getById, {
     params: listingIdParamsSchema,
