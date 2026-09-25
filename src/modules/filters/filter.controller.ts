@@ -4,10 +4,10 @@ import { filterService, type FilterService } from './filter.service';
 import type {
   facetCountsQuerySchema,
   filterCategoryParamsSchema,
-  filterQuerySchema,
+  globalFacetQuerySchema,
 } from './filter.schema';
 
-type FilterQueryParams = Static<typeof filterQuerySchema>;
+type GlobalFacetQuery = Static<typeof globalFacetQuerySchema>;
 type FilterCategoryParams = Static<typeof filterCategoryParamsSchema>;
 type FacetCountsQuery = Static<typeof facetCountsQuerySchema>;
 
@@ -20,8 +20,9 @@ type FacetCountsQuery = Static<typeof facetCountsQuerySchema>;
 export class FilterController {
   constructor(private readonly service: FilterService = filterService) {}
 
-  list = async (ctx: HttpContext<unknown, FilterQueryParams, unknown>) => {
-    return this.service.list(ctx.query.categoryId ?? null);
+  /** `GET /filters` — global facets across all listings. */
+  listGlobal = async (ctx: HttpContext<unknown, GlobalFacetQuery, unknown>) => {
+    return this.service.listGlobal(toSelections(ctx.query.filters));
   };
 
   listForCategory = async (ctx: HttpContext<unknown, FacetCountsQuery, FilterCategoryParams>) => {
@@ -36,7 +37,9 @@ export class FilterController {
  * `string | string[]` contract. Malformed pairs are ignored rather than
  * rejected, since a bad selection should not break an otherwise valid request.
  */
-function toSelections(filters: FacetCountsQuery['filters']): Record<string, string | string[]> {
+function toSelections(
+  filters: GlobalFacetQuery['filters'] | FacetCountsQuery['filters'],
+): Record<string, string | string[]> {
   if (filters === undefined) return {};
 
   const raw = Array.isArray(filters) ? filters : [filters];

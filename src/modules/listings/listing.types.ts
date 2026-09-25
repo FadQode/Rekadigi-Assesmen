@@ -130,18 +130,18 @@ export interface ListingSearchResult extends PaginatedResponse<Listing> {
 /**
  * A single typeahead suggestion returned by `GET /listings/search/suggest`.
  *
- * `value` is the stored display-case text (e.g. `Toyota`), not a lowercased
- * form, so it can be reused directly as the case-sensitive `make`/`model`
- * search filter.
+ * `value` is the stored display-case text (e.g. `Toyota`, `Jakarta`), not a
+ * lowercased form, so it can be reused directly as the case-sensitive
+ * `make` / `model` / `city` search filter.
  *
- * Only `'make'` and `'model'` are currently produced. `'title'` is retained in
- * the union for forward compatibility so that adding title suggestions later
- * does not widen the type; it is never returned today because title matching is
- * not implemented and has no trigram index.
+ * The union mirrors the three suggestion types the assessment requires. A
+ * suggestion's `type` tells the client which filter the value belongs to, which
+ * matters because the same text can be both a make and a city in different
+ * datasets (e.g. a city named after a brand).
  */
 export interface ListingSuggestion {
   value: string;
-  type: 'make' | 'model' | 'title';
+  type: 'make' | 'model' | 'city';
 }
 
 /**

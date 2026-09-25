@@ -523,22 +523,29 @@ export class PostgresListingRepository implements ListingRepository {
   }
 
   /**
-   * Typeahead suggestions for `make` and `model`.
+   * Typeahead suggestions for `make`, `model` and `city`.
    *
    * Matching is done entirely in PostgreSQL using `pg_trgm`:
    *
-   * - prefix/partial: `lower(make) LIKE '%q%'`, indexable by the
+   * - prefix/partial: `lower(<column>) LIKE '%q%'`, indexable by the
    *   `gin_trgm_ops` indexes;
    * - fuzzy: the trigram similarity operator `%`, which absorbs typos.
    *
-   * Both predicates are covered by `idx_listings_make_trgm` and
-   * `idx_listings_model_trgm`, so the plan is a bitmap index scan rather than a
-   * sequential scan. Only the bounded result set is transferred; no listing or
-   * distinct-value inventory is loaded into the application.
+   * All three predicates are covered by `idx_listings_make_trgm`,
+   * `idx_listings_model_trgm` and `idx_listings_city_trgm`, so the plan is a
+   * bitmap index scan rather than a sequential scan. Only the bounded result
+   * set is transferred; no listing or distinct-value inventory is loaded into
+   * the application.
    *
    * The stored display-case value is returned (not the lowercased form) so the
-   * suggestion stays usable as the case-sensitive `?make=` / `?model=` filter
-   * value in `search`.
+   * suggestion stays usable as the case-sensitive `?make=` / `?model=` /
+   * `?city=` filter value in `search`.
+   *
+   * Deduplication is by lowercased value across all three columns
+   * (`GROUP BY normalized`), so a value that appears on many listings is
+   * returned once. A value that matches more than one column yields a single
+   * row whose `type` is the alphabetically first of the matches, which keeps
+   * the output stable.
    */
   async suggest(prefix: string, limit: number): Promise<ListingSuggestion[]> {
     const normalized = prefix.trim().toLowerCase();
@@ -560,6 +567,12 @@ export class PostgresListingRepository implements ListingRepository {
          WHERE deleted_at IS NULL
            AND status <> 'removed'
            AND (lower(model) LIKE $1 OR lower(model) % $2)
+         UNION ALL
+         SELECT lower(city) AS normalized, city AS raw, 'city' AS type
+         FROM listings
+         WHERE deleted_at IS NULL
+           AND status <> 'removed'
+           AND (lower(city) LIKE $1 OR lower(city) % $2)
        )
        SELECT min(raw) AS value, min(type) AS type
        FROM candidates

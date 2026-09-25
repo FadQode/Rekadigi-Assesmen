@@ -125,9 +125,84 @@ export const suggestListingsQuerySchema = t.Object({
   q: t.String({
     minLength: 1,
     maxLength: 100,
-    description: 'Text to complete against make and model (prefix, partial or fuzzy)',
+    description: 'Text to complete against make, model and city (prefix, partial or fuzzy)',
   }),
   limit: t.Optional(
     t.Integer({ minimum: 1, maximum: 20, default: 5, description: 'Maximum suggestions to return' }),
   ),
 });
+
+/**
+ * Response schemas for the listing read/write contract.
+ *
+ * Expressed as plain JSON Schema rather than TypeBox: these are attached to
+ * routes as `detail.responses` documentation only, and OpenAPI's
+ * `ResponsesObject` type accepts raw schema objects, not `t.Object` instances.
+ * Using the `response` route option instead would make Elysia validate and
+ * strip the real payload, which is explicitly not wanted here.
+ */
+export const listingResponseSchema = {
+  type: 'object' as const,
+  required: [
+    'id',
+    'title',
+    'categoryId',
+    'make',
+    'model',
+    'year',
+    'mileage',
+    'price',
+    'condition',
+    'transmission',
+    'fuelType',
+    'city',
+    'status',
+    'attributes',
+    'images',
+    'createdAt',
+    'updatedAt',
+  ],
+  properties: {
+    id: { type: 'string' as const, format: 'uuid' },
+    title: { type: 'string' as const },
+    description: { type: 'string' as const, nullable: true },
+    categoryId: { type: 'string' as const, format: 'uuid' },
+    make: { type: 'string' as const },
+    model: { type: 'string' as const },
+    year: { type: 'integer' as const },
+    mileage: { type: 'integer' as const },
+    price: { type: 'number' as const },
+    condition: { type: 'string' as const },
+    transmission: { type: 'string' as const },
+    fuelType: { type: 'string' as const },
+    color: { type: 'string' as const, nullable: true },
+    city: { type: 'string' as const },
+    status: { type: 'string' as const, enum: ['available', 'sold', 'pending', 'removed'] },
+    attributes: { type: 'object' as const, additionalProperties: true },
+    images: { type: 'array' as const, items: { type: 'string' as const } },
+    createdAt: { type: 'string' as const, format: 'date-time' },
+    updatedAt: { type: 'string' as const, format: 'date-time' },
+    deletedAt: { type: 'string' as const, nullable: true, format: 'date-time' },
+  },
+};
+
+/** Cursor-paginated envelope returned by `GET /listings`. */
+export const listingSearchResponseSchema = {
+  type: 'object' as const,
+  required: ['data', 'pagination'],
+  properties: {
+    data: { type: 'array' as const, items: listingResponseSchema },
+    pagination: {
+      type: 'object' as const,
+      required: ['nextCursor', 'hasNextPage'],
+      properties: {
+        nextCursor: {
+          type: 'string' as const,
+          nullable: true,
+          description: 'Opaque keyset cursor for the next page, or null when exhausted',
+        },
+        hasNextPage: { type: 'boolean' as const },
+      },
+    },
+  },
+};

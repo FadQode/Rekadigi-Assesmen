@@ -4,23 +4,13 @@ import { errorHandler } from './middleware/error-handler';
 import { notFoundHandler } from './middleware/not-found';
 import { categoryRoutes, filterRoutes, listingRoutes } from './modules/index';
 import { healthRoutes } from './health.routes';
+import { errorResponseSchema } from './shared/schemas/index';
 import type { ApiErrorBody } from './shared/types/api';
 
-export const errorResponseSchema = {
-  type: 'object',
-  required: ['error'],
-  properties: {
-    error: {
-      type: 'object',
-      required: ['code', 'message'],
-      properties: {
-        code: { type: 'string' },
-        message: { type: 'string' },
-        details: {},
-      },
-    },
-  },
-} as const;
+// Re-exported for backwards compatibility; the canonical definition lives in
+// `shared/schemas/openapi.ts` so route modules can use it without importing the
+// root application (which would be circular).
+export { errorResponseSchema };
 
 /**
  * Root Elysia application.

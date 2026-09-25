@@ -86,7 +86,7 @@ describe('OpenAPI documentation', () => {
     expect(documented).toHaveLength(16);
   });
 
-  it('documents suggestions as make/model only', async () => {
+  it('documents suggestions as make, model and city', async () => {
     const response = await app.handle(new Request('http://localhost/docs/json'));
     const spec = (await response.json()) as {
       paths: Record<string, { get?: { summary?: string; description?: string } }>;
@@ -94,9 +94,63 @@ describe('OpenAPI documentation', () => {
 
     const operation = spec.paths['/listings/search/suggest']?.get;
     expect(operation).toBeDefined();
-    expect(operation?.summary).toBe('Typeahead suggestions for make and model');
-    expect(operation?.summary?.toLowerCase()).not.toContain('title');
-    expect(operation?.description?.toLowerCase()).toContain('title suggestions are not supported');
+    expect(operation?.summary).toBe('Autocomplete suggestions for make, model and city');
+    for (const type of ['make', 'model', 'city']) {
+      expect(operation?.description?.toLowerCase()).toContain(type);
+    }
+  });
+
+  /**
+   * The assessment requires the API documentation to include responses. Every
+   * §4.1 listing endpoint must document its success and error responses.
+   */
+  it('documents success and error responses for the listing endpoints', async () => {
+    const response = await app.handle(new Request('http://localhost/docs/json'));
+    const spec = (await response.json()) as {
+      paths: Record<string, Record<string, { responses?: Record<string, unknown> }>>;
+    };
+
+    const expected: Array<[string, string, string[]]> = [
+      ['post', '/listings', ['201', '400', '404']],
+      ['get', '/listings', ['200', '400', '404']],
+      ['get', '/listings/{id}', ['200', '400', '404']],
+      ['patch', '/listings/{id}', ['200', '400', '404']],
+      ['delete', '/listings/{id}', ['204', '400', '404']],
+    ];
+
+    for (const [method, path, codes] of expected) {
+      const operation = spec.paths[path]?.[method];
+      expect(operation).toBeDefined();
+      const responses = Object.keys(operation?.responses ?? {});
+      for (const code of codes) {
+        expect(responses).toContain(code);
+      }
+    }
+  });
+
+  it('documents a response body schema for listing reads and writes', async () => {
+    const response = await app.handle(new Request('http://localhost/docs/json'));
+    const spec = (await response.json()) as {
+      paths: Record<
+        string,
+        Record<string, { responses?: Record<string, { content?: Record<string, { schema?: { properties?: Record<string, unknown> } }> }> }>
+      >;
+    };
+
+    const schemaOf = (method: string, path: string, code: string) =>
+      spec.paths[path]?.[method]?.responses?.[code]?.content?.['application/json']?.schema;
+
+    const single = schemaOf('get', '/listings/{id}', '200');
+    expect(single?.properties).toBeDefined();
+    for (const field of ['id', 'title', 'categoryId', 'make', 'model', 'status', 'createdAt']) {
+      expect(Object.keys(single?.properties ?? {})).toContain(field);
+    }
+
+    const page = schemaOf('get', '/listings', '200');
+    expect(Object.keys(page?.properties ?? {})).toEqual(expect.arrayContaining(['data', 'pagination']));
+
+    const created = schemaOf('post', '/listings', '201');
+    expect(Object.keys(created?.properties ?? {})).toContain('id');
   });
 
   /**

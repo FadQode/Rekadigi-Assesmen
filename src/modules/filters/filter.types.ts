@@ -60,8 +60,44 @@ export interface FilterWithCounts extends FilterAttribute {
   count?: number;
 }
 
+/**
+ * A globally-scoped facet returned by `GET /filters`.
+ *
+ * The same logical filter is defined once per category that uses it (for
+ * example `fuel_type` appears under SUVs, sedans and hatchbacks), so a global
+ * facet is deduplicated by `key` and carries whichever options are declared
+ * anywhere. It therefore has no definition `id` or `categoryId`: those belong
+ * to a category-scoped definition, not to the global view.
+ */
+export interface GlobalFilterWithCounts {
+  /** Filter slug, e.g. `fuel_type`. */
+  key: string;
+  /** Human-readable name, e.g. `Fuel Type`. */
+  label: string;
+  type: FilterAttributeType;
+  /** Declared options with counts, or `[]` for `range` filters. */
+  options: FilterOption[];
+  /** Smallest available value across matching listings (`range` filters). */
+  min?: number | null;
+  /** Largest available value across matching listings (`range` filters). */
+  max?: number | null;
+  /** Listings matching the current selection that have a value for this filter. */
+  count: number;
+}
+
 export interface FilterQuery {
   categoryId: string | null;
   /** Current filter selections, used to compute facet counts. */
+  selections?: Record<string, string | string[]>;
+}
+
+/**
+ * Query for the global facet endpoint.
+ *
+ * There is no `categoryId`: `GET /filters` aggregates across every category.
+ * `selections` reuses the same `key:value` contract as the category-scoped
+ * facets, so counts can reflect an active result set.
+ */
+export interface GlobalFilterQuery {
   selections?: Record<string, string | string[]>;
 }

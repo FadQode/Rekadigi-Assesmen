@@ -28,3 +28,5 @@ export function uuidSchema(description?: string) {
     ...(description === undefined ? {} : { description }),
   });
 }
+
+export { errorResponseSchema } from './openapi';

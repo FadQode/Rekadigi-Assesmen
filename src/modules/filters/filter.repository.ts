@@ -5,6 +5,8 @@ import type {
   FilterOption,
   FilterQuery,
   FilterWithCounts,
+  GlobalFilterQuery,
+  GlobalFilterWithCounts,
 } from './filter.types';
 
 /**
@@ -20,6 +22,9 @@ export interface FilterRepository {
 
   /** Filter definitions enriched with facet counts for the current selection. */
   findWithCounts(query: FilterQuery): Promise<FilterWithCounts[]>;
+
+  /** Global facets, deduplicated by filter key, with counts across all listings. */
+  findGlobalWithCounts(query?: GlobalFilterQuery): Promise<GlobalFilterWithCounts[]>;
 }
 
 /** Explicit projection mirroring `filter_attributes`; no `SELECT *`. */
@@ -68,6 +73,10 @@ function textValueExpression(keyExpr: string): string {
            ELSE lower(l.attributes ->> ${keyExpr})
          END`;
 }
+
+/** The same resolution against the alias `l` used by global facet queries. */
+const GLOBAL_TEXT_VALUE = textValueExpression('defs.slug');
+const GLOBAL_NUMERIC_VALUE = numericValueExpression('defs.slug');
 
 /** Resolve a filter key to its numeric value, guarding JSONB casts. */
 function numericValueExpression(keyExpr: string): string {
@@ -191,6 +200,61 @@ const OPTIONS_LATERAL = `
       FROM (VALUES ('true'), ('false')) AS bucket(value)
       WHERE f.type = 'boolean'
     ) AS discovered`;
+
+/**
+ * One deduplicated definition per filter slug for the global facet view.
+ *
+ * A filter is defined once per category that uses it, so `fuel_type` exists as
+ * three separate rows. The global endpoint must present one logical filter, so
+ * this collapses them by `slug` and takes the union of every declared `enum`
+ * option, which is why a globally-scoped `fuel_type` lists `hybrid` even though
+ * only some categories declare it.
+ *
+ * `name`/`type` are `min()`-selected: every slug in this schema uses a single
+ * consistent name and type, which the seed enforces.
+ */
+const GLOBAL_DEFINITIONS = `
+  WITH defs AS (
+    SELECT
+      d0.slug,
+      min(d0.name) AS name,
+      min(d0.type) AS type,
+      CASE
+        WHEN min(d0.type) = 'enum' THEN (
+          SELECT coalesce(jsonb_agg(DISTINCT option), '[]'::jsonb)
+          FROM filter_attributes x
+          CROSS JOIN LATERAL jsonb_array_elements(x.options) AS option
+          WHERE x.slug = d0.slug AND x.type = 'enum'
+        )
+        ELSE '[]'::jsonb
+      END AS options
+    FROM filter_attributes d0
+    GROUP BY d0.slug
+  )`;
+
+/**
+ * Selection guards for the global facet queries.
+ *
+ * Mirrors `buildSelectionGuards` but keyed off the deduplicated `defs.slug`
+ * instead of a per-category definition row. A selection is skipped inside its
+ * own dimension so that dimension still reports all of its options.
+ */
+function buildGlobalSelectionGuards(selections: Selection[], params: unknown[]): string {
+  return selections
+    .map((selection) => {
+      params.push(selection.key);
+      const keyPlaceholder = `$${params.length}`;
+      params.push(selection.values);
+      const valuesPlaceholder = `$${params.length}`;
+      // Resolve the *selection's* key, not the row's own slug, so a selection
+      // constrains the listing set through the dimension it selects.
+      return (
+        `AND (defs.slug = ${keyPlaceholder} ` +
+        `OR ${textValueExpression(keyPlaceholder)} = ANY(${valuesPlaceholder}::text[]))`
+      );
+    })
+    .join('\n    ');
+}
 
 /**
  * PostgreSQL implementation of `FilterRepository`.
@@ -331,6 +395,156 @@ export class PostgresFilterRepository implements FilterRepository {
          AND f.type = 'range'
        GROUP BY f.slug
        ORDER BY f.slug`,
+      params,
+    );
+
+    return result.rows;
+  }
+
+  /**
+   * Global facets for `GET /filters`.
+   *
+   * Unlike `findWithCounts`, this is not scoped to one category: definitions are
+   * deduplicated by slug and counts cover every non-deleted listing, so it
+   * answers "what filter options exist across the marketplace, and how many
+   * listings carry each value".
+   *
+   * The same two-query shape as the category-scoped path is reused — one
+   * aggregate for discrete options, one for range bounds — because `enum`/
+   * `boolean` need per-option counts while `range` needs `min`/`max`. All
+   * aggregation happens in PostgreSQL.
+   */
+  async findGlobalWithCounts(query?: GlobalFilterQuery): Promise<GlobalFilterWithCounts[]> {
+    const selections = buildSelections(query?.selections);
+
+    const [definitions, counts, ranges] = await Promise.all([
+      this.queryGlobalDefinitions(),
+      this.queryGlobalDiscreteCounts(selections),
+      this.queryGlobalRangeBounds(selections),
+    ]);
+
+    const countsByKey = new Map<string, Map<string, number>>();
+    for (const row of counts) {
+      const bucket = countsByKey.get(row.key) ?? new Map<string, number>();
+      bucket.set(row.value, row.count);
+      countsByKey.set(row.key, bucket);
+    }
+
+    const rangesByKey = new Map(ranges.map((row) => [row.key, row]));
+
+    return definitions.map((definition) => {
+      if (definition.type === 'range') {
+        const range = rangesByKey.get(definition.key);
+        return {
+          key: definition.key,
+          label: definition.label,
+          type: definition.type,
+          options: [],
+          min: range?.min ?? null,
+          max: range?.max ?? null,
+          count: range?.sized ?? 0,
+        };
+      }
+
+      const bucket = countsByKey.get(definition.key) ?? new Map<string, number>();
+      const options =
+        definition.type === 'boolean'
+          ? BOOLEAN_FACET_VALUES.map((value) => ({
+              value,
+              label: value === 'true' ? 'Yes' : 'No',
+              count: bucket.get(value) ?? 0,
+            }))
+          : definition.options.map((option) => ({
+              ...option,
+              count: bucket.get(option.value.toLowerCase()) ?? 0,
+            }));
+
+      return {
+        key: definition.key,
+        label: definition.label,
+        type: definition.type,
+        options,
+        count: options.reduce((sum, option) => sum + (option.count ?? 0), 0),
+      };
+    });
+  }
+
+  /** Deduplicated filter definitions (one row per slug). */
+  private async queryGlobalDefinitions(): Promise<FilterAttribute[]> {
+    const result = await this.db.query<{
+      slug: string;
+      name: string;
+      type: string;
+      options: unknown;
+    }>(
+      `${GLOBAL_DEFINITIONS}
+       SELECT slug, name, type, options FROM defs ORDER BY name`,
+    );
+
+    return result.rows.map((row) => ({
+      id: row.slug,
+      key: row.slug,
+      label: row.name,
+      type: row.type as FilterAttributeType,
+      categoryId: '',
+      options: normalizeOptions(row.options),
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
+    }));
+  }
+
+  /** Global per-option counts for every `enum`/`boolean` filter slug. */
+  private async queryGlobalDiscreteCounts(selections: Selection[]): Promise<CountRow[]> {
+    const params: unknown[] = [];
+    const guards = buildGlobalSelectionGuards(selections, params);
+
+    const result = await this.db.query<CountRow>(
+      `${GLOBAL_DEFINITIONS}
+       SELECT defs.slug AS key, discovered.value AS value, count(l.id)::int AS count
+       FROM defs
+       CROSS JOIN LATERAL (
+         SELECT (option ->> 'value') AS value
+         FROM jsonb_array_elements(defs.options) AS option
+         UNION ALL
+         SELECT bucket.value
+         FROM (VALUES ('true'), ('false')) AS bucket(value)
+         WHERE defs.type = 'boolean'
+       ) AS discovered
+       LEFT JOIN listings l
+         ON l.deleted_at IS NULL
+        AND l.status <> 'removed'
+        AND ${GLOBAL_TEXT_VALUE} = discovered.value
+       WHERE defs.type IN ('enum', 'boolean')
+       ${guards}
+       GROUP BY defs.slug, discovered.value
+       ORDER BY defs.slug, discovered.value`,
+      params,
+    );
+
+    return result.rows;
+  }
+
+  /** Global bounds and match count for every `range` filter slug. */
+  private async queryGlobalRangeBounds(selections: Selection[]): Promise<RangeRow[]> {
+    const params: unknown[] = [];
+    const guards = buildGlobalSelectionGuards(selections, params);
+
+    const result = await this.db.query<RangeRow>(
+      `${GLOBAL_DEFINITIONS}
+       SELECT
+         defs.slug AS key,
+         min(${GLOBAL_NUMERIC_VALUE})::float8 AS min,
+         max(${GLOBAL_NUMERIC_VALUE})::float8 AS max,
+         count(l.id)::int AS sized
+       FROM defs
+       LEFT JOIN listings l
+         ON l.deleted_at IS NULL
+        AND l.status <> 'removed'
+        AND ${GLOBAL_NUMERIC_VALUE} IS NOT NULL
+       WHERE defs.type = 'range'
+       ${guards}
+       GROUP BY defs.slug
+       ORDER BY defs.slug`,
       params,
     );
 

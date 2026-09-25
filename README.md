@@ -351,14 +351,20 @@ validated as the new complete map. When only the category changes, the stored
 attributes are re-validated against the new category rather than being silently
 carried over.
 
-**Faceted aggregation.** `GET /filters/{categoryId}` returns definitions plus
-counts for the current selection, computed entirely in PostgreSQL via two
+**Faceted aggregation.** `GET /filters` and `GET /filters/{categoryId}` both
+return counts for the current selection, computed entirely in PostgreSQL via two
 focused aggregate queries:
 
 - discrete facets (`enum` / `boolean`) pivot declared options (and, for
   booleans, synthesized `true`/`false`) with a `LEFT JOIN` back to matching
   listings;
 - `range` facets return `min` / `max` bounds plus a match count.
+
+`GET /filters` runs the same two aggregates over a definition set collapsed to
+one row per `slug`, so a filter shared by several categories (`fuel_type`,
+`price`, `year`, â€¦) appears once with the union of its declared options and
+counts across all listings. `GET /filters/{categoryId}` keeps the definitions
+category-scoped.
 
 Two details worth noting:
 
@@ -394,16 +400,16 @@ pipeline exists because there is only one source of truth.
   status, …) are combined conjunctively with the text predicate in one
   parameterized statement.
 - Typeahead suggestions are handled separately by `pg_trgm`: `GET
-  /listings/search/suggest` uses a CTE over `make` and `model` with a
+  /listings/search/suggest` uses a CTE over `make`, `model` and `city` with a
   `LIKE '%q%'` predicate and the trigram similarity operator `%`, both covered
-  by GIN `gin_trgm_ops` indexes on `lower(make)` / `lower(model)`. This
-  tolerates partial, case-insensitive and typo'd input. User-supplied `%` and
-  `_` are escaped so they cannot widen the match.
+  by GIN `gin_trgm_ops` indexes on `lower(make)` / `lower(model)` /
+  `lower(city)`. This tolerates partial, case-insensitive and typo'd input.
+  User-supplied `%` and `_` are escaped so they cannot widen the match.
 
 Suggestions return the stored display-case value (`Toyota`, not `toyota`) so the
-suggestion can be reused directly as the `make`/`model` filter value. Only
-`make` and `model` suggestions are produced; title suggestions are not
-implemented and have no trigram index.
+suggestion can be reused directly as the `make`, `model` or `city` filter value.
+Each suggestion carries a `type` of `make`, `model` or `city`; those are the
+three suggestion types produced.
 
 ---
 
@@ -507,7 +513,7 @@ Base URL locally: `http://localhost:3000`.
 |---|---|---|
 | GET | `/listings` | List/browse with structured filters, sorting, cursor pagination |
 | GET | `/listings/search` | Same contract as `GET /listings`, including full-text search via `q` |
-| GET | `/listings/search/suggest` | Typeahead suggestions for make and model (`pg_trgm`) |
+| GET | `/listings/search/suggest` | Autocomplete suggestions for make, model and city (`pg_trgm`) |
 | GET | `/listings/{id}` | Fetch one listing by id |
 | POST | `/listings` | Create a listing (`201`) |
 | PATCH | `/listings/{id}` | Partially update a listing |
@@ -528,8 +534,8 @@ Base URL locally: `http://localhost:3000`.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/filters` | Filter definitions, scoped by `?categoryId=` |
-| GET | `/filters/{categoryId}` | Filter definitions plus facet counts for a category |
+| GET | `/filters` | Get all available filter options with counts (facets), across all listings |
+| GET | `/filters/{categoryId}` | Get filter attributes specific to a category |
 
 ### Listing search query parameters
 
@@ -561,8 +567,17 @@ Unknown query parameters on `/listings` and `/listings/search` are rejected with
 `400` instead of being silently dropped. Unknown query parameters on the
 tolerant category read endpoints are ignored.
 
-Category-scoped facets accept repeatable `filters=key:value` selections, e.g.
-`/filters/{categoryId}?filters=drivetrain:awd&filters=fuel_type:petrol`.
+`GET /filters` returns **global** facets: every filter key available anywhere in
+the marketplace, deduplicated by key, with counts across all non-deleted
+listings. Enum and boolean filters carry per-option counts; range filters carry
+global `min`/`max` bounds. `GET /filters/{categoryId}` returns only the filter
+attributes a single category declares.
+
+Both endpoints accept repeatable `filters=key:value` selections, e.g.
+`/filters?filters=drivetrain:awd` or
+`/filters/{categoryId}?filters=drivetrain:awd&filters=fuel_type:petrol`. A
+selection narrows every other dimension while its own dimension still reports
+all of its options, which is what makes the counts usable for switching values.
 
 ---
 
@@ -805,6 +820,8 @@ Ran 60 tests across 9 files.
 | `error-handling.test.ts` | 404 shape, validation normalization, no internal leakage |
 | `health.test.ts` | Liveness and readiness probes |
 | `listing-filters.test.ts` | Canonical vs alias range filters, inclusive bounds, precedence, status semantics, sort ordering, unknown-param rejection |
+| `global-filters.test.ts` | `GET /filters` global facets: dedup by key, enum/boolean/range count shapes, removed-listing exclusion, selection scoping, distinction from `/filters/{categoryId}` |
+| `suggest.test.ts` | Autocomplete: make/model/city suggestion types, response shape, dedup, case-insensitive/partial/fuzzy matching, limit bounds, wildcard escaping |
 | `openapi.test.ts` | Spec is served, exact operation set (16 operations), parameter parity, write-body fields |
 | `unique-violation.test.ts` | SQLSTATE `23505` → `409 CONFLICT` mapping |
 
