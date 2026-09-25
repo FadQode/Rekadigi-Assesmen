@@ -152,7 +152,8 @@ src/
 │   │   ├── 001_enable_extensions.sql
 │   │   ├── 002_create_categories.sql
 │   │   ├── 003_create_filter_attributes_and_listings.sql
-│   │   └── 004_create_indexes_and_triggers.sql
+│   │   ├── 004_create_indexes_and_triggers.sql
+│   │   └── 005_maintain_listings_search_vector.sql
 │   └── seeds/
 │       └── seed.ts             # Deterministic, idempotent seed
 ├── middleware/
@@ -170,7 +171,7 @@ src/
     ├── types/                  # api.ts, http.ts response/context contracts
     └── utils/                  # cursor.ts, strict-input.ts, helpers.ts
 
-tests/                          # 9 files, 60 tests
+tests/                          # 12 files, 96 tests
 docker/entrypoint.sh            # migrate → seed → start
 Dockerfile
 docker-compose.yml
@@ -224,7 +225,7 @@ root categories to share a slug.
 | `status` | `varchar(20)` | `available \| sold \| pending \| removed`, default `available` |
 | `images` | `jsonb` | ordered URL array, default `[]` |
 | `attributes` | `jsonb` | category-specific dynamic attributes, default `{}` |
-| `search_vector` | `tsvector` | populated from title/description/make/model/color/city |
+| `search_vector` | `tsvector` | maintained by trigger from title/description/make/model/color/city |
 | `created_at` / `updated_at` | `timestamptz` | |
 | `deleted_at` | `timestamptz` | soft-delete marker, nullable |
 
@@ -393,9 +394,15 @@ pipeline exists because there is only one source of truth.
   `search_vector @@ websearch_to_tsquery('english', $n)`. `websearch_to_tsquery`
   is used because it accepts natural user input (quoted phrases, `or`, leading
   `-`) without raising syntax errors on malformed text.
-- The seed populates `search_vector` from
+- `search_vector` is derived from
   `title || description || make || model || color || city` using
-  `to_tsvector('english', …)`.
+  `to_tsvector('english', …)`. It is kept current by the
+  `trg_listings_search_vector` trigger (migration
+  `005_maintain_listings_search_vector.sql`), which fires on `INSERT` and on
+  updates of those specific columns, so a listing created or edited through the
+  API is immediately searchable. The trigger lists its source columns in an
+  `UPDATE OF` clause, so non-text updates (price, status, soft delete) do not
+  rebuild the vector.
 - Structured predicates (category, make, model, year, mileage, price, city,
   status, …) are combined conjunctively with the text predicate in one
   parameterized statement.
@@ -733,6 +740,7 @@ Migrations are plain, forward-only SQL files applied in lexical order by
 | `002_create_categories.sql` | `categories` table, indexes, root-slug partial unique |
 | `003_create_filter_attributes_and_listings.sql` | `filter_attributes` and `listings` tables with checks |
 | `004_create_indexes_and_triggers.sql` | Listing indexes, `set_updated_at()` trigger on all tables, trigram indexes |
+| `005_maintain_listings_search_vector.sql` | `trg_listings_search_vector` trigger maintaining `search_vector` on insert/update, plus backfill |
 
 The runner:
 
@@ -822,6 +830,7 @@ Ran 60 tests across 9 files.
 | `listing-filters.test.ts` | Canonical vs alias range filters, inclusive bounds, precedence, status semantics, sort ordering, unknown-param rejection |
 | `global-filters.test.ts` | `GET /filters` global facets: dedup by key, enum/boolean/range count shapes, removed-listing exclusion, selection scoping, distinction from `/filters/{categoryId}` |
 | `suggest.test.ts` | Autocomplete: make/model/city suggestion types, response shape, dedup, case-insensitive/partial/fuzzy matching, limit bounds, wildcard escaping |
+| `search-vector.test.ts` | `search_vector` trigger: populated on create, refreshed on text update, unchanged fields still match, soft delete excluded |
 | `openapi.test.ts` | Spec is served, exact operation set (16 operations), parameter parity, write-body fields |
 | `unique-violation.test.ts` | SQLSTATE `23505` → `409 CONFLICT` mapping |
 
