@@ -1,0 +1,144 @@
+// DBML schema for the Automotive Marketplace API.
+//
+// Source of truth: src/database/migrations/001..005. This file is a
+// representation for dbdiagram.io (https://dbdiagram.io) and is kept in sync
+// with the SQL migrations; the migrations remain authoritative.
+//
+// Category tree strategy: adjacency list (`parent_id`) plus a materialized
+// `path` and `depth`, so subtree ordering/ancestry is readable in one column and
+// the tree can be assembled in a single ordered pass.
+//
+// Indexing decisions are documented in README section 10 and in migration 004.
+
+Project Rekadigi_Backend_Assessment {
+  database_type: 'PostgreSQL'
+  Note: '''
+  Automotive Marketplace API - Bun + Elysia + PostgreSQL (raw SQL, no ORM).
+  Three domain tables plus migration bookkeeping.
+  '''
+}
+
+Table categories {
+  id uuid [pk, default: `gen_random_uuid()`]
+  parent_id uuid [ref: > categories.id, note: 'ON DELETE RESTRICT; NULL = root']
+  name varchar(100) [not null]
+  slug varchar(100) [not null]
+  path text [not null, note: 'Materialized ancestry, e.g. /vehicles/cars/suv']
+  depth integer [not null, default: 0, note: '0 for a root category']
+  created_at timestamptz [not null, default: `NOW()`]
+  updated_at timestamptz [not null, default: `NOW()`]
+
+  Note: '''
+  Arbitrary-depth hierarchy via adjacency list + materialized path + depth.
+
+  Checks: depth >= 0; non-empty name and slug.
+  Unique: (parent_id, slug) for non-root siblings, plus a partial unique index
+  on slug WHERE parent_id IS NULL so two roots cannot share a slug (a plain
+  UNIQUE treats each NULL parent as distinct).
+
+  Indexes:
+    idx_categories_parent_id  -> recursive descendant traversal
+    idx_categories_path       -> text_pattern_ops, ordered tree assembly
+    uq_categories_root_slug   -> partial unique (parent_id IS NULL)
+
+  Triggers: trg_categories_updated_at sets updated_at on UPDATE.
+  '''
+
+  indexes {
+    (parent_id, slug) [unique, name: 'categories_parent_slug_unique']
+    parent_id [name: 'idx_categories_parent_id']
+    path [name: 'idx_categories_path', note: 'text_pattern_ops']
+    slug [unique, name: 'uq_categories_root_slug', note: 'WHERE parent_id IS NULL']
+  }
+}
+
+Table filter_attributes {
+  id uuid [pk, default: `gen_random_uuid()`]
+  category_id uuid [not null, ref: > categories.id, note: 'ON DELETE CASCADE']
+  name varchar(100) [not null]
+  slug varchar(100) [not null, note: 'Key written into listings.attributes JSONB']
+  type varchar(20) [not null, note: 'enum | range | boolean']
+  options jsonb [not null, default: `'[]'::jsonb`, note: 'enum options: [{value,label}]; empty for range/boolean']
+  created_at timestamptz [not null, default: `NOW()`]
+  updated_at timestamptz [not null, default: `NOW()`]
+
+  Note: '''
+  Dynamic, category-specific filter definitions. A filter appears only under
+  the categories that declare it (e.g. fuel_type under cars, not motorcycles).
+  Values are stored on the listing in the attributes JSONB column.
+
+  Checks: type IN (enum, range, boolean); non-empty name and slug.
+  Unique: (category_id, slug).
+
+  Triggers: trg_filter_attributes_updated_at sets updated_at on UPDATE.
+  '''
+
+  indexes {
+    (category_id, slug) [unique, name: 'filter_attributes_unique_slug']
+    category_id [name: 'idx_filter_attributes_category']
+  }
+}
+
+Table listings {
+  id uuid [pk, default: `gen_random_uuid()`]
+  category_id uuid [not null, ref: > categories.id, note: 'ON DELETE RESTRICT']
+  title varchar(255) [not null]
+  description text [note: 'nullable']
+  make varchar(100) [not null]
+  model varchar(100) [not null]
+  year smallint [not null, note: '>= 1886']
+  mileage integer [not null, default: 0, note: '>= 0']
+  price numeric(15,2) [not null, note: '>= 0']
+  condition varchar(30) [not null]
+  transmission varchar(30) [not null]
+  fuel_type varchar(30) [not null]
+  color varchar(50) [note: 'nullable']
+  city varchar(100) [not null, note: 'Assessment "location"']
+  status varchar(20) [not null, default: 'available', note: 'available | sold | pending | removed']
+  images jsonb [not null, default: `'[]'::jsonb`, note: 'ordered array of image URLs']
+  attributes jsonb [not null, default: `'{}'::jsonb`, note: 'category-specific dynamic attributes']
+  search_vector tsvector [note: 'maintained by trigger from title/description/make/model/color/city']
+  created_at timestamptz [not null, default: `NOW()`]
+  updated_at timestamptz [not null, default: `NOW()`]
+  deleted_at timestamptz [note: 'soft-delete marker; nullable']
+
+  Note: '''
+  Core vehicle listing entity.
+
+  Checks: year >= 1886; mileage >= 0; price >= 0;
+          status IN (available, sold, pending, removed);
+          non-empty title, make, model.
+
+  Soft delete: DELETE sets status = 'removed' AND deleted_at = NOW(); the row is
+  never physically removed. Reads exclude rows where deleted_at IS NOT NULL OR
+  status = 'removed'.
+
+  Full-text search: search_vector is maintained by trg_listings_search_vector on
+  INSERT and on UPDATE OF title, description, make, model, color, city.
+
+  Triggers: trg_listings_updated_at, trg_listings_search_vector.
+  '''
+
+  indexes {
+    created_at [name: 'idx_listings_created_cursor', note: 'DESC, id DESC - keyset pagination + default browse order']
+    category_id [name: 'idx_listings_category']
+    status [name: 'idx_listings_status']
+    make [name: 'idx_listings_make']
+    model [name: 'idx_listings_model']
+    year [name: 'idx_listings_year']
+    price [name: 'idx_listings_price']
+    city [name: 'idx_listings_city']
+    search_vector [name: 'idx_listings_search_vector', note: 'GIN - full-text search']
+    make [name: 'idx_listings_make_trgm', note: 'GIN lower(make) gin_trgm_ops - autocomplete']
+    model [name: 'idx_listings_model_trgm', note: 'GIN lower(model) gin_trgm_ops - autocomplete']
+    city [name: 'idx_listings_city_trgm', note: 'GIN lower(city) gin_trgm_ops - autocomplete']
+  }
+}
+
+Table schema_migrations {
+  id uuid [pk]
+  filename text [not null, unique]
+  applied_at timestamptz [not null, default: `NOW()`]
+
+  Note: 'Forward-only migration bookkeeping, written by src/database/migrate.ts.'
+}
