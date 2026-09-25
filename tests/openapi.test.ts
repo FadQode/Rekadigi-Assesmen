@@ -220,4 +220,74 @@ describe('OpenAPI documentation', () => {
       expect(properties).toContain('slug');
     }
   });
+
+  /**
+   * The assessment's deliverables require every endpoint to be documented with
+   * sample requests and responses. Suggest and the two filter endpoints
+   * previously declared no `responses` at all, so their success and error
+   * contracts were absent from the spec.
+   */
+  it('documents responses for every required endpoint', async () => {
+    const response = await app.handle(new Request('http://localhost/docs/json'));
+    const spec = (await response.json()) as {
+      paths: Record<string, Record<string, { responses?: Record<string, unknown> }>>;
+    };
+
+    const required: Array<[string, string, string[]]> = [
+      ['post', '/listings', ['201', '400', '404']],
+      ['get', '/listings', ['200', '400', '404']],
+      ['get', '/listings/{id}', ['200', '400', '404']],
+      ['patch', '/listings/{id}', ['200', '400', '404']],
+      ['delete', '/listings/{id}', ['204', '400', '404']],
+      ['get', '/listings/search', ['200', '400', '404']],
+      ['get', '/listings/search/suggest', ['200', '400']],
+      ['get', '/filters', ['200', '400']],
+      ['get', '/filters/{categoryId}', ['200', '400', '404']],
+      ['get', '/categories', ['200']],
+      ['get', '/categories/{id}', ['200', '400', '404']],
+      ['get', '/categories/{id}/listings', ['200', '400', '404']],
+      ['post', '/categories', ['201', '400', '404', '409']],
+      ['patch', '/categories/{id}', ['200', '400', '404', '409']],
+    ];
+
+    for (const [method, path, expected] of required) {
+      const operation = spec.paths[path]?.[method];
+      expect(operation).toBeDefined();
+      const codes = Object.keys(operation?.responses ?? {});
+      expect(codes.length).toBeGreaterThan(0);
+      for (const code of expected) {
+        expect(codes).toContain(code);
+      }
+    }
+  });
+
+  it('documents the suggest and facet response bodies', async () => {
+    const response = await app.handle(new Request('http://localhost/docs/json'));
+    const spec = (await response.json()) as {
+      paths: Record<
+        string,
+        Record<
+          string,
+          {
+            responses?: Record<
+              string,
+              { content?: Record<string, { schema?: { items?: { properties?: Record<string, unknown> } } }> }
+            >;
+          }
+        >
+      >;
+    };
+
+    const suggestItems =
+      spec.paths['/listings/search/suggest']?.get?.responses?.['200']?.content?.['application/json']?.schema?.items;
+    expect(Object.keys(suggestItems?.properties ?? {})).toEqual(
+      expect.arrayContaining(['value', 'type']),
+    );
+
+    const facetItems =
+      spec.paths['/filters']?.get?.responses?.['200']?.content?.['application/json']?.schema?.items;
+    expect(Object.keys(facetItems?.properties ?? {})).toEqual(
+      expect.arrayContaining(['key', 'label', 'type', 'options', 'count']),
+    );
+  });
 });

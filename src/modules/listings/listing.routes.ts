@@ -10,6 +10,7 @@ import {
   listingSearchResponseSchema,
   searchListingsQuerySchema,
   suggestListingsQuerySchema,
+  suggestResponseSchema,
   updateListingBodySchema,
 } from './listing.schema';
 
@@ -80,6 +81,13 @@ export const listingRoutes = new Elysia({ prefix: '/listings', tags: ['Listings'
       summary: 'Autocomplete suggestions for make, model and city',
       description:
         'Returns distinct make, model and city values matching the query, each tagged with its `type`. Matching is performed in PostgreSQL using pg_trgm, so partial, case-insensitive and fuzzy (typo-tolerant) input all match. Values are returned in their stored display casing so they can be reused directly as the `make`, `model` or `city` search filters.',
+      responses: {
+        200: {
+          description: 'Matching suggestions (empty array when nothing matches)',
+          content: { 'application/json': { schema: suggestResponseSchema } },
+        },
+        400: errorResponses[400],
+      },
     },
   })
   .get('/:id', listingController.getById, {

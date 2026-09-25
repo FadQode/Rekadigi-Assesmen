@@ -206,3 +206,21 @@ export const listingSearchResponseSchema = {
     },
   },
 };
+
+/**
+ * Typeahead suggestions returned by `GET /listings/search/suggest`.
+ *
+ * Documentation-only, attached as `detail.responses` metadata.
+ */
+export const suggestResponseSchema = {
+  type: 'array' as const,
+  description: 'Matching make, model and city values, each tagged with its type',
+  items: {
+    type: 'object' as const,
+    required: ['value', 'type'],
+    properties: {
+      value: { type: 'string' as const, description: 'Stored display-case value, reusable as a filter' },
+      type: { type: 'string' as const, enum: ['make', 'model', 'city'] },
+    },
+  },
+};
