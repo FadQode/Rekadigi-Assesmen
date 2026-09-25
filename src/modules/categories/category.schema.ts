@@ -40,6 +40,7 @@ export const CATEGORY_WRITE_FIELDS = ['parentId', 'name', 'slug'] as const;
 
 export const updateCategoryBodySchema = t.Partial(createCategoryBodySchema);
 
+/** Query schema for `GET /categories/:id/listings`. */
 export const categoryListingsQuerySchema = t.Object({
   includeDescendants: t.Optional(
     t.BooleanString({
@@ -52,3 +53,60 @@ export const categoryListingsQuerySchema = t.Object({
     t.String({ maxLength: 512, description: 'Opaque cursor from a previous page' }),
   ),
 });
+
+/**
+ * Response schemas for the category read/write contract.
+ *
+ * Plain JSON Schema rather than TypeBox: these are attached as
+ * `detail.responses` documentation only, and OpenAPI's `ResponsesObject` type
+ * accepts raw schema objects, not `t.Object` instances. Using the `response`
+ * route option instead would make Elysia strip undeclared fields at runtime.
+ *
+ * `children` is declared as a self-referencing array so the nested tree shape is
+ * documented rather than a recursive `$ref` OpenAPI cannot express inline.
+ */
+export const categoryResponseSchema = {
+  type: 'object' as const,
+  required: ['id', 'parentId', 'name', 'slug', 'path', 'depth', 'createdAt', 'updatedAt'],
+  properties: {
+    id: { type: 'string' as const, format: 'uuid' },
+    parentId: { type: 'string' as const, nullable: true, format: 'uuid' },
+    name: { type: 'string' as const },
+    slug: { type: 'string' as const },
+    path: { type: 'string' as const, description: 'Materialized ancestry, e.g. /vehicles/cars/suv' },
+    depth: { type: 'integer' as const, description: '0 for a root category' },
+    createdAt: { type: 'string' as const, format: 'date-time' },
+    updatedAt: { type: 'string' as const, format: 'date-time' },
+  },
+};
+
+/** A category with its nested descendant subtree. */
+export const categoryTreeResponseSchema = {
+  type: 'object' as const,
+  required: ['id', 'parentId', 'name', 'slug', 'path', 'depth', 'children', 'createdAt', 'updatedAt'],
+  properties: {
+    ...categoryResponseSchema.properties,
+    children: {
+      type: 'array' as const,
+      description: 'Direct children, each nested the same way',
+      items: categoryResponseSchema,
+    },
+  },
+};
+
+/** Cursor-paginated listing page returned by `GET /categories/:id/listings`. */
+export const categoryListingsResponseSchema = {
+  type: 'object' as const,
+  required: ['data', 'pagination'],
+  properties: {
+    data: { type: 'array' as const, items: { type: 'object' as const, additionalProperties: true } },
+    pagination: {
+      type: 'object' as const,
+      required: ['nextCursor', 'hasNextPage'],
+      properties: {
+        nextCursor: { type: 'string' as const, nullable: true },
+        hasNextPage: { type: 'boolean' as const },
+      },
+    },
+  },
+};

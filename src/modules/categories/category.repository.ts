@@ -14,8 +14,6 @@ import type {
  * tests.
  */
 export interface CategoryRepository {
-  findAll(): Promise<Category[]>;
-
   findTree(): Promise<CategoryTreeNode[]>;
 
   findById(id: string): Promise<Category | null>;
@@ -67,13 +65,6 @@ function mapRow(row: CategoryRow): Category {
  */
 export class PostgresCategoryRepository implements CategoryRepository {
   constructor(protected readonly db: Queryable = pool) {}
-
-  async findAll(): Promise<Category[]> {
-    const result = await this.db.query<CategoryRow>(
-      `SELECT ${CATEGORY_COLUMNS} FROM categories ORDER BY depth, name`,
-    );
-    return result.rows.map(mapRow);
-  }
 
   async findTree(): Promise<CategoryTreeNode[]> {
     const result = await this.db.query<CategoryRow>(

@@ -171,7 +171,7 @@ src/
     ├── types/                  # api.ts, http.ts response/context contracts
     └── utils/                  # cursor.ts, strict-input.ts, helpers.ts
 
-tests/                          # 12 files, 96 tests
+tests/                          # 13 files, 104 tests
 docker/entrypoint.sh            # migrate → seed → start
 Dockerfile
 docker-compose.yml
@@ -301,9 +301,11 @@ How each operation works:
 - **Descendant traversal.** `findDescendantIds(id)` uses `WITH RECURSIVE` over
   `parent_id` to return the category and all descendants. This is the id set
   used for subtree listing queries.
-- **Tree read.** `GET /categories/tree` reads all rows `ORDER BY path` and
-  assembles parents before children in a single in-memory pass — no recursive
-  query per node and no N+1.
+- **Tree read.** `GET /categories` (and its `GET /categories/tree` alias) reads
+  all rows `ORDER BY path` and assembles parents before children in a single
+  in-memory pass â€” no recursive query per node and no N+1.
+  `GET /categories/{id}` reuses that same single read and returns the located
+  node with its nested subtree.
 - **Cycle prevention.** The service rejects a move where the target parent is
   the category itself or one of its own descendants (resolved via the descendant
   set), returning `409 CONFLICT` with code `CATEGORY_CYCLE`. Moving to the root
@@ -530,9 +532,9 @@ Base URL locally: `http://localhost:3000`.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/categories` | Flat list of all categories |
-| GET | `/categories/tree` | Nested category tree |
-| GET | `/categories/{id}` | Fetch one category |
+| GET | `/categories` | Full category tree (nested `children`) |
+| GET | `/categories/tree` | Nested category tree (alias of `GET /categories`) |
+| GET | `/categories/{id}` | Single category with its nested children |
 | GET | `/categories/{id}/listings` | Listings in a category (subtree by default) |
 | POST | `/categories` | Create a category (`201`) |
 | PATCH | `/categories/{id}` | Update / move a category |
@@ -824,6 +826,7 @@ Ran 60 tests across 9 files.
 | `architecture.test.ts` | Layer boundaries: no SQL in controllers/routes, no Elysia/HTTP in services/repositories, no `pg` in controllers |
 | `categories.test.ts` | Cycle prevention, moving to root, parent validation, slug/parent errors |
 | `category-contract.test.ts` | Unknown-field rejection on category writes, tolerant category reads, strict listing reads |
+| `category-tree.test.ts` | `GET /categories` nested tree shape, parent/child/depth/path consistency, `GET /categories/:id` children |
 | `cursor.test.ts` | Cursor encode/decode round-trip, URL-safe output, malformed cursors |
 | `error-handling.test.ts` | 404 shape, validation normalization, no internal leakage |
 | `health.test.ts` | Liveness and readiness probes |

@@ -31,7 +31,7 @@ export class CategoryController {
   };
 
   getById = async (ctx: HttpContext<unknown, unknown, CategoryIdParams>) => {
-    return this.service.getById(ctx.params.id);
+    return this.service.getWithChildren(ctx.params.id);
   };
 
   create = async (ctx: HttpContext<CreateCategoryBody, unknown, unknown>) => {

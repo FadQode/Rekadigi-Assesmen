@@ -58,7 +58,6 @@ function makeRepository(calls: Calls): CategoryRepository {
   };
 
   return {
-    findAll: async () => [...rows.values()],
     findTree: async (): Promise<CategoryTreeNode[]> => [],
     findById: async (id) => rows.get(id) ?? null,
     findByParentAndSlug: async (parentId, slug) =>

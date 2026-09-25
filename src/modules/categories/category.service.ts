@@ -25,8 +25,16 @@ export class CategoryService {
     private readonly listings: ListingService = listingService,
   ) {}
 
-  async list(): Promise<Category[]> {
-    return this.repository.findAll();
+  /**
+   * Full category tree.
+   *
+   * The assessment defines `GET /categories` as "get full category tree", so the
+   * default collection response is the nested hierarchy rather than a flat list.
+   * `GET /categories/tree` remains as a compatibility alias returning the same
+   * shape.
+   */
+  async list(): Promise<CategoryTreeNode[]> {
+    return this.repository.findTree();
   }
 
   async getTree(): Promise<CategoryTreeNode[]> {
@@ -39,6 +47,22 @@ export class CategoryService {
       throw new NotFoundError('Category not found', { details: { code: 'CATEGORY_NOT_FOUND' } });
     }
     return category;
+  }
+
+  /**
+   * A single category together with its descendant subtree.
+   *
+   * The assessment defines `GET /categories/:id` as "get single category with
+   * its children", so the HTTP response nests `children` recursively. Building
+   * the tree once and locating the node keeps this to a single query rather
+   * than one lookup per level.
+   */
+  async getWithChildren(id: string): Promise<CategoryTreeNode> {
+    const node = locateNode(await this.repository.findTree(), id);
+    if (node === null) {
+      throw new NotFoundError('Category not found', { details: { code: 'CATEGORY_NOT_FOUND' } });
+    }
+    return node;
   }
 
   async create(data: CreateCategoryData): Promise<Category> {
@@ -149,3 +173,13 @@ export class CategoryService {
 }
 
 export const categoryService = new CategoryService();
+
+/** Depth-first search for a node in a pre-built tree. */
+function locateNode(nodes: CategoryTreeNode[], id: string): CategoryTreeNode | null {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    const found = locateNode(node.children, id);
+    if (found !== null) return found;
+  }
+  return null;
+}

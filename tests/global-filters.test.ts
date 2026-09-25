@@ -108,9 +108,20 @@ describe('GET /filters global facets', () => {
 
 describe('GET /filters versus GET /filters/:categoryId', () => {
   it('returns the global facet set and a per-category subset respectively', async () => {
+    // `GET /categories` returns the nested tree, so flatten it to look up a slug.
     const categoriesResponse = await app.handle(new Request('http://localhost/categories'));
-    const categories = (await categoriesResponse.json()) as Array<{ id: string; slug: string }>;
-    const suv = categories.find((category) => category.slug === 'suv');
+    const tree = (await categoriesResponse.json()) as Array<{
+      id: string;
+      slug: string;
+      children: Array<{ id: string; slug: string; children: unknown[] }>;
+    }>;
+    type Flat = { id: string; slug: string };
+    const flatten = (nodes: typeof tree): Flat[] =>
+      nodes.flatMap((node) => [
+        { id: node.id, slug: node.slug },
+        ...flatten((node.children ?? []) as typeof tree),
+      ]);
+    const suv = flatten(tree).find((category) => category.slug === 'suv');
     expect(suv).toBeDefined();
 
     const global = await getFacets('/filters');
